@@ -1,6 +1,8 @@
 /.phpunit.cache
+/.npm-cache
 /node_modules
 /public/build
+/database/database.sqlite
 /storage/*.key
 /storage/app/*
 !/storage/app/.gitignore
