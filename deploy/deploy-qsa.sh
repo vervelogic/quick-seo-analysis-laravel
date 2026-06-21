@@ -2,25 +2,21 @@
 set -euo pipefail
 
 APP_DIR="/home/alphaver/public_html/quick-seo-analysis"
+PHP="/opt/cpanel/ea-php83/root/usr/bin/php"
+COMPOSER="/usr/local/bin/composer"
+NPM="/bin/npm"
 
 cd "$APP_DIR"
 
 git pull origin main
-composer install --no-dev --optimize-autoloader
-php artisan migrate --force
-npm ci || npm install
-npm run build
-php artisan optimize:clear
-php artisan filament:assets
-php artisan route:clear
-php artisan view:clear
-php artisan config:clear
+"$PHP" "$COMPOSER" install --no-dev --optimize-autoloader
+"$PHP" artisan migrate --force
+"$NPM" ci || "$NPM" install
+"$NPM" run build
+"$PHP" artisan optimize:clear
+"$PHP" artisan filament:assets
+"$PHP" artisan route:clear
+"$PHP" artisan view:clear
+"$PHP" artisan config:clear
 
-if chown -R alphaver:alphaver "$APP_DIR" 2>/dev/null; then
-    echo "Ownership refreshed for $APP_DIR"
-else
-    echo "Skipping ownership refresh; run it once as root if permissions need repair."
-fi
-
-find storage bootstrap/cache -type d -exec chmod 775 {} \;
-find storage bootstrap/cache -type f -exec chmod 664 {} \;
+echo "QSA deploy complete"
