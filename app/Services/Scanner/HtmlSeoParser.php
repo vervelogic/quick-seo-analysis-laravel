@@ -23,10 +23,12 @@ class HtmlSeoParser
         $links = $xpath->query('//a[@href]');
         $images = $xpath->query('//img');
         $schema = $this->schemaData($xpath);
+        $footerText = $this->footerText($xpath);
         $visibleText = $this->visibleText($document);
         $wordCount = str_word_count($visibleText);
         $linksData = [];
         $headings = [];
+        $headingLevels = ['h1' => [], 'h2' => [], 'h3' => []];
         $htmlLength = max(1, strlen($html));
         $textLength = strlen($visibleText);
         $host = strtolower(parse_url($url, PHP_URL_HOST) ?: '');
@@ -52,7 +54,12 @@ class HtmlSeoParser
 
         foreach (['h1', 'h2', 'h3'] as $tag) {
             foreach ($xpath->query('//'.$tag) as $heading) {
-                $headings[] = trim(preg_replace('/\s+/', ' ', $heading->textContent));
+                $headingText = trim(preg_replace('/\s+/', ' ', $heading->textContent));
+
+                if ($headingText !== '') {
+                    $headings[] = $headingText;
+                    $headingLevels[$tag][] = $headingText;
+                }
             }
         }
 
@@ -80,6 +87,7 @@ class HtmlSeoParser
             'images_missing_alt_count' => $missingAlt,
             'links' => $linksData,
             'headings' => array_values(array_filter($headings)),
+            'heading_levels' => $headingLevels,
             'open_graph' => [
                 'og:title' => $this->metaProperty($xpath, 'og:title'),
                 'og:description' => $this->metaProperty($xpath, 'og:description'),
@@ -101,6 +109,7 @@ class HtmlSeoParser
                 'content_html_ratio' => round(($textLength / $htmlLength) * 100, 2),
                 'questions' => $this->questions($visibleText, $headings),
                 'entities' => $this->entities($visibleText),
+                'footer_text' => mb_substr($footerText, 0, 4000),
                 'visible_text' => mb_substr($visibleText, 0, 12000),
             ],
         ];
@@ -176,6 +185,17 @@ class HtmlSeoParser
         }
 
         return $types;
+    }
+
+    private function footerText(DOMXPath $xpath): string
+    {
+        $parts = [];
+
+        foreach ($xpath->query('//footer') as $footer) {
+            $parts[] = trim(preg_replace('/\s+/', ' ', $footer->textContent));
+        }
+
+        return trim(implode(' ', array_filter($parts)));
     }
 
     private function visibleText(DOMDocument $document): string
