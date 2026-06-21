@@ -75,9 +75,9 @@
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
                 <div>
-                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">Included in v1</p>
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">What we check</p>
                     <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">The essentials that make a first SEO conversation useful.</h2>
-                    <p class="mt-4 text-slate-600">QSA v1 focuses on reliable signals that can be explained clearly to a prospect or client.</p>
+                    <p class="mt-4 text-slate-600">QSA focuses on reliable signals that can be explained clearly to a prospect or client.</p>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
                     @foreach (['Reachability and HTTP status', 'Title and meta description', 'H1 count and canonical URL', 'Robots meta and HTTPS', 'Page size and response time', 'Internal and external links', 'Images missing alt text', 'SEO score and recommendations'] as $check)
