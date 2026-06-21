@@ -10,6 +10,7 @@ class SeoScanner
         private readonly PageFetcher $fetcher,
         private readonly HtmlSeoParser $parser,
         private readonly SeoScoreCalculator $scorer,
+        private readonly VisibilitySignalAnalyzer $visibility,
     ) {
     }
 
@@ -43,9 +44,15 @@ class SeoScanner
             'schema' => [],
             'content' => [
                 'visible_word_count' => 0,
+                'unique_word_count' => 0,
                 'thin_content' => true,
                 'content_html_ratio' => 0,
+                'questions' => [],
+                'entities' => [],
+                'visible_text' => '',
             ],
+            'links' => [],
+            'headings' => [],
         ];
 
         $security = $this->securityHeaders($fetch->headers);
@@ -80,13 +87,19 @@ class SeoScanner
         ]);
 
         $score = $this->scorer->calculate($data);
+        $visibility = $this->visibility->analyze(array_merge($data, $score, [
+            'url' => $scan->normalized_url,
+        ]));
+        $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], [
+            'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
+        ]);
 
         $scan->result()->updateOrCreate(
             ['scan_id' => $scan->id],
             array_merge($data, [
-                'score' => $score['score'],
+                'score' => $scoreBreakdown['overall_visibility_score'],
                 'checks' => $score['checks'],
-                'recommendations' => $score['recommendations'],
+                'recommendations' => array_values(array_merge($score['recommendations'], $visibility['visibility_data']['opportunities'])),
                 'technical_data' => $technical,
                 'on_page_data' => [
                     'title' => $parsed['title'],
@@ -106,7 +119,12 @@ class SeoScanner
                 ],
                 'structured_data' => $parsed['schema'],
                 'ai_readiness_data' => $score['ai_readiness_data'],
-                'score_breakdown' => $score['score_breakdown'],
+                'ai_visibility_data' => $visibility['ai_visibility_data'],
+                'geo_data' => $visibility['geo_data'],
+                'aeo_data' => $visibility['aeo_data'],
+                'visibility_data' => $visibility['visibility_data'],
+                'opportunity_data' => $visibility['visibility_data']['opportunities'],
+                'score_breakdown' => $scoreBreakdown,
                 'raw' => [
                     'final_url' => $fetch->finalUrl,
                     'error' => $fetch->error,
