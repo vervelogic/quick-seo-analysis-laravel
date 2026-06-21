@@ -30,6 +30,7 @@ class PageFetcher
                 html: $body,
                 responseTimeMs: (int) round((microtime(true) - $started) * 1000),
                 pageSizeBytes: strlen($body),
+                headers: $response->headers(),
                 finalUrl: $handlerStats['url'] ?? $url,
             );
         } catch (\Throwable $exception) {
@@ -39,6 +40,7 @@ class PageFetcher
                 html: null,
                 responseTimeMs: (int) round((microtime(true) - $started) * 1000),
                 pageSizeBytes: 0,
+                headers: [],
                 error: $exception->getMessage(),
             );
         }
