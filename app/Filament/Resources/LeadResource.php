@@ -26,7 +26,9 @@ class LeadResource extends Resource
             Forms\Components\TextInput::make('email')->email()->required()->maxLength(190),
             Forms\Components\TextInput::make('phone')->maxLength(60),
             Forms\Components\TextInput::make('company_name')->maxLength(160),
-            Forms\Components\DateTimePicker::make('last_contacted_at')->seconds(false),
+            Forms\Components\DateTimePicker::make('last_contacted_at')
+                ->timezone(config('app.timezone'))
+                ->seconds(false),
             Forms\Components\TextInput::make('source_report_uuid')->maxLength(36),
             Forms\Components\Textarea::make('notes')->columnSpanFull(),
         ]);
@@ -51,8 +53,16 @@ class LeadResource extends Resource
                 })->sortable(),
                 Tables\Columns\TextColumn::make('assignedUser.name')->label('Owner')->sortable(),
                 Tables\Columns\TextColumn::make('scan.normalized_url')->label('Scanned URL')->limit(42),
-                Tables\Columns\TextColumn::make('last_contacted_at')->dateTime()->sortable(),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('last_contacted_at')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST')
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')->options(self::statusOptions()),
