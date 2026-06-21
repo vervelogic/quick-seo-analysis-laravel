@@ -17,12 +17,17 @@ class Lead extends Model
         'email',
         'phone',
         'company_name',
+        'status',
+        'assigned_user_id',
+        'last_contacted_at',
+        'source_report_uuid',
         'notes',
         'metadata',
     ];
 
     protected $casts = [
         'metadata' => 'array',
+        'last_contacted_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -33,5 +38,10 @@ class Lead extends Model
     public function scan(): BelongsTo
     {
         return $this->belongsTo(Scan::class);
+    }
+
+    public function assignedUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_user_id');
     }
 }

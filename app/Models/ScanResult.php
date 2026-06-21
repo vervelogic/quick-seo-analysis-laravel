@@ -39,6 +39,11 @@ class ScanResult extends Model
         'social_data',
         'structured_data',
         'ai_readiness_data',
+        'visibility_data',
+        'ai_visibility_data',
+        'geo_data',
+        'aeo_data',
+        'opportunity_data',
         'score_breakdown',
         'raw',
     ];
@@ -56,6 +61,11 @@ class ScanResult extends Model
         'social_data' => 'array',
         'structured_data' => 'array',
         'ai_readiness_data' => 'array',
+        'visibility_data' => 'array',
+        'ai_visibility_data' => 'array',
+        'geo_data' => 'array',
+        'aeo_data' => 'array',
+        'opportunity_data' => 'array',
         'score_breakdown' => 'array',
         'raw' => 'array',
     ];
