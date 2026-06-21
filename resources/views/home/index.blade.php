@@ -14,17 +14,38 @@
                 </div>
             </div>
 
-            <div class="rounded-xl border border-white/10 bg-white p-6 shadow-2xl shadow-blue-950/40 sm:p-8">
+            <div class="relative overflow-hidden rounded-xl border border-white/10 bg-white p-6 shadow-2xl shadow-blue-950/40 sm:p-8">
+                <div data-scan-loading class="pointer-events-none absolute inset-0 z-10 hidden bg-white/95 p-6 backdrop-blur-sm sm:p-8">
+                    <div class="flex h-full min-h-80 flex-col justify-center">
+                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+                            <div class="h-9 w-9 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+                        </div>
+                        <div class="mx-auto mt-6 max-w-sm text-center">
+                            <h2 class="text-2xl font-black tracking-tight text-slate-950">Scanning your website...</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">Checking SEO, AI Visibility, GEO and AEO signals. This usually takes a few seconds.</p>
+                        </div>
+                        <div class="mx-auto mt-6 w-full max-w-sm overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-2 w-2/3 animate-pulse rounded-full bg-blue-600"></div>
+                        </div>
+                        <div class="mx-auto mt-6 grid w-full max-w-sm gap-2 text-sm text-slate-700">
+                            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 font-semibold">Checking page access and HTTPS</div>
+                            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 font-semibold">Reading metadata, headings, links and images</div>
+                            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 font-semibold">Scoring AI visibility and answer readiness</div>
+                        </div>
+                    </div>
+                </div>
+
                 <h2 class="text-2xl font-bold tracking-tight text-slate-950">Get a free SEO report</h2>
                 <p class="mt-2 text-sm leading-6 text-slate-600">Enter a domain, homepage, or landing page URL. The first scan runs instantly.</p>
 
-                <form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
+                <form data-scan-form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
                     @csrf
                     <label for="url" class="block text-sm font-semibold text-slate-800">Website URL</label>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <input id="url" name="url" value="{{ old('url') }}" placeholder="example.com" class="min-h-12 flex-1 rounded-lg border-slate-300 text-base shadow-sm focus:border-blue-600 focus:ring-blue-600" required>
-                        <button class="min-h-12 rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200" type="submit">Scan</button>
+                        <button data-scan-button class="inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Scan</button>
                     </div>
+                    <p class="text-xs font-medium text-slate-500">You can enter example.com, https://example.com, or http://example.com.</p>
                     @error('url')
                         <p class="text-sm font-medium text-red-600">{{ $message }}</p>
                     @enderror
@@ -87,4 +108,23 @@
             </div>
         </div>
     </section>
+
+    <script>
+        document.querySelectorAll('[data-scan-form]').forEach((form) => {
+            form.addEventListener('submit', () => {
+                const button = form.querySelector('[data-scan-button]');
+                const loading = form.closest('.relative')?.querySelector('[data-scan-loading]');
+
+                if (button) {
+                    button.disabled = true;
+                    button.textContent = 'Scanning...';
+                }
+
+                if (loading) {
+                    loading.classList.remove('hidden');
+                    loading.classList.add('flex');
+                }
+            });
+        });
+    </script>
 </x-layouts.app>
