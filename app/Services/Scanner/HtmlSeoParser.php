@@ -25,6 +25,8 @@ class HtmlSeoParser
         $schema = $this->schemaData($xpath);
         $visibleText = $this->visibleText($document);
         $wordCount = str_word_count($visibleText);
+        $linksData = [];
+        $headings = [];
         $htmlLength = max(1, strlen($html));
         $textLength = strlen($visibleText);
         $host = strtolower(parse_url($url, PHP_URL_HOST) ?: '');
@@ -40,6 +42,18 @@ class HtmlSeoParser
 
             $linkHost = strtolower(parse_url($href, PHP_URL_HOST) ?: $host);
             $linkHost === $host ? $internal++ : $external++;
+            $linksData[] = [
+                'href' => $href,
+                'text' => trim(preg_replace('/\s+/', ' ', $link->textContent)),
+                'host' => $linkHost,
+                'internal' => $linkHost === $host,
+            ];
+        }
+
+        foreach (['h1', 'h2', 'h3'] as $tag) {
+            foreach ($xpath->query('//'.$tag) as $heading) {
+                $headings[] = trim(preg_replace('/\s+/', ' ', $heading->textContent));
+            }
         }
 
         $missingAlt = 0;
@@ -64,6 +78,8 @@ class HtmlSeoParser
             'external_links_count' => $external,
             'images_count' => $images->length,
             'images_missing_alt_count' => $missingAlt,
+            'links' => $linksData,
+            'headings' => array_values(array_filter($headings)),
             'open_graph' => [
                 'og:title' => $this->metaProperty($xpath, 'og:title'),
                 'og:description' => $this->metaProperty($xpath, 'og:description'),
@@ -80,8 +96,12 @@ class HtmlSeoParser
             'schema' => $schema,
             'content' => [
                 'visible_word_count' => $wordCount,
+                'unique_word_count' => $this->uniqueWordCount($visibleText),
                 'thin_content' => $wordCount < 300,
                 'content_html_ratio' => round(($textLength / $htmlLength) * 100, 2),
+                'questions' => $this->questions($visibleText, $headings),
+                'entities' => $this->entities($visibleText),
+                'visible_text' => mb_substr($visibleText, 0, 12000),
             ],
         ];
     }
@@ -168,5 +188,31 @@ class HtmlSeoParser
         }
 
         return trim(preg_replace('/\s+/', ' ', $document->textContent));
+    }
+
+    private function uniqueWordCount(string $text): int
+    {
+        preg_match_all('/[a-zA-Z][a-zA-Z0-9-]{2,}/', strtolower($text), $matches);
+
+        return count(array_unique($matches[0] ?? []));
+    }
+
+    private function questions(string $text, array $headings): array
+    {
+        preg_match_all('/[^.!?]*\?/', $text, $matches);
+
+        return array_values(array_slice(array_unique(array_filter(array_map(
+            fn (string $question): string => trim(preg_replace('/\s+/', ' ', $question)),
+            array_merge($matches[0] ?? [], array_filter($headings, fn ($heading) => str_contains($heading, '?')))
+        ))), 0, 20));
+    }
+
+    private function entities(string $text): array
+    {
+        preg_match_all('/\b[A-Z][a-zA-Z0-9&.-]*(?:\s+[A-Z][a-zA-Z0-9&.-]*){0,3}\b/', $text, $matches);
+
+        $entities = array_filter($matches[0] ?? [], fn (string $entity) => mb_strlen($entity) >= 3);
+
+        return array_values(array_slice(array_unique($entities), 0, 40));
     }
 }
