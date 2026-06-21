@@ -11,6 +11,7 @@ class SeoScanner
         private readonly HtmlSeoParser $parser,
         private readonly SeoScoreCalculator $scorer,
         private readonly VisibilitySignalAnalyzer $visibility,
+        private readonly TopicIntelligenceAnalyzer $topicIntelligence,
     ) {
     }
 
@@ -52,10 +53,12 @@ class SeoScanner
                 'content_html_ratio' => 0,
                 'questions' => [],
                 'entities' => [],
+                'footer_text' => '',
                 'visible_text' => '',
             ],
             'links' => [],
             'headings' => [],
+            'heading_levels' => ['h1' => [], 'h2' => [], 'h3' => []],
         ];
 
         $security = $this->securityHeaders($fetch->headers);
@@ -93,16 +96,24 @@ class SeoScanner
         $visibility = $this->visibility->analyze(array_merge($data, $score, [
             'url' => $effectiveUrl,
         ]));
-        $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], [
+        $topicIntelligence = $this->topicIntelligence->analyze(array_merge($data, $score, $visibility, [
+            'url' => $effectiveUrl,
+        ]));
+        $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], $topicIntelligence['score_breakdown'], [
             'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
         ]);
+        $recommendations = array_values(array_merge(
+            $score['recommendations'],
+            $visibility['visibility_data']['opportunities'],
+            $topicIntelligence['opportunities']
+        ));
 
         $scan->result()->updateOrCreate(
             ['scan_id' => $scan->id],
             array_merge($data, [
                 'score' => $scoreBreakdown['overall_visibility_score'],
                 'checks' => $score['checks'],
-                'recommendations' => array_values(array_merge($score['recommendations'], $visibility['visibility_data']['opportunities'])),
+                'recommendations' => $recommendations,
                 'technical_data' => $technical,
                 'on_page_data' => [
                     'title' => $parsed['title'],
@@ -112,6 +123,7 @@ class SeoScanner
                     'h1_count' => $parsed['h1_count'],
                     'canonical' => $parsed['canonical'],
                     'robots_meta' => $parsed['robots_meta'],
+                    'heading_levels' => $parsed['heading_levels'] ?? ['h1' => [], 'h2' => [], 'h3' => []],
                 ],
                 'content_data' => $parsed['content'],
                 'performance_data' => $performance,
@@ -125,8 +137,13 @@ class SeoScanner
                 'ai_visibility_data' => $visibility['ai_visibility_data'],
                 'geo_data' => $visibility['geo_data'],
                 'aeo_data' => $visibility['aeo_data'],
+                'topic_intelligence_data' => $topicIntelligence['topic_intelligence_data'],
+                'ranking_potential_data' => $topicIntelligence['ranking_potential_data'],
+                'prompt_intelligence_data' => $topicIntelligence['prompt_intelligence_data'],
+                'content_coverage_data' => $topicIntelligence['content_coverage_data'],
+                'ai_citation_readiness_data' => $topicIntelligence['ai_citation_readiness_data'],
                 'visibility_data' => $visibility['visibility_data'],
-                'opportunity_data' => $visibility['visibility_data']['opportunities'],
+                'opportunity_data' => $recommendations,
                 'score_breakdown' => $scoreBreakdown,
                 'raw' => [
                     'requested_url' => $scan->normalized_url,
