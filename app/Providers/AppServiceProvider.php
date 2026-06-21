@@ -16,6 +16,8 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        date_default_timezone_set(config('app.timezone', 'Asia/Kolkata'));
+
         RateLimiter::for('scan', function (Request $request) {
             return Limit::perMinute((int) config('qsa.scan_rate_limit_per_minute', 6))
                 ->by($request->ip());
