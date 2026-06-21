@@ -37,7 +37,7 @@ class PageFetcher
                 pageSizeBytes: 0,
                 headers: [],
                 finalUrl: $url,
-                error: $exception->getMessage(),
+                error: $this->friendlyError($exception),
             );
         }
     }
@@ -93,14 +93,15 @@ class PageFetcher
     private function sendRequest(string $url): Response
     {
         return Http::timeout(config('qsa.scan_timeout'))
-            ->connectTimeout(6)
+            ->connectTimeout((int) config('qsa.scan_connect_timeout', 8))
+            ->retry(1, 350, throw: false)
             ->withOptions([
                 'allow_redirects' => false,
+                'decode_content' => true,
+                'http_errors' => false,
+                'curl' => $this->curlOptions(),
             ])
-            ->withHeaders([
-                'User-Agent' => config('app.name').' SEO Scanner (+'.config('app.url').')',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            ])
+            ->withHeaders($this->browserHeaders($url))
             ->get($url);
     }
 
@@ -192,5 +193,51 @@ class PageFetcher
         $query = isset($parts['query']) ? '?'.$parts['query'] : '';
 
         return $scheme.'://'.$host.$path.$query;
+    }
+
+    private function browserHeaders(string $url): array
+    {
+        $host = parse_url($url, PHP_URL_HOST) ?: '';
+
+        return [
+            'User-Agent' => config('qsa.scan_user_agent'),
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.9',
+            'Accept-Encoding' => 'gzip, deflate, br',
+            'Cache-Control' => 'no-cache',
+            'Pragma' => 'no-cache',
+            'Upgrade-Insecure-Requests' => '1',
+            'Referer' => 'https://'.$host.'/',
+        ];
+    }
+
+    private function curlOptions(): array
+    {
+        $options = [];
+
+        if (defined('CURLOPT_IPRESOLVE') && defined('CURL_IPRESOLVE_V4')) {
+            $options[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+        }
+
+        return $options;
+    }
+
+    private function friendlyError(\Throwable $exception): string
+    {
+        $message = $exception->getMessage();
+
+        if (str_contains(strtolower($message), 'timed out')) {
+            return 'The page request timed out from the scanner server.';
+        }
+
+        if (str_contains(strtolower($message), 'could not resolve')) {
+            return 'The domain could not be resolved from the scanner server.';
+        }
+
+        if (str_contains(strtolower($message), 'ssl') || str_contains(strtolower($message), 'certificate')) {
+            return 'The page could not be fetched because of an SSL or certificate error.';
+        }
+
+        return $message;
     }
 }
