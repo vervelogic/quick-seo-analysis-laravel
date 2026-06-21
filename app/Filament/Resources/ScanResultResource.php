@@ -50,7 +50,11 @@ class ScanResultResource extends Resource
                 Tables\Columns\IconColumn::make('is_reachable')->boolean(),
                 Tables\Columns\IconColumn::make('uses_https')->boolean(),
                 Tables\Columns\TextColumn::make('response_time_ms')->label('Time')->suffix(' ms')->sortable(),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST')
+                    ->sortable(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
