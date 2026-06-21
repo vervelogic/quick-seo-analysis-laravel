@@ -36,6 +36,8 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->widgets([
                 \App\Filament\Widgets\QsaStatsOverview::class,
+                \App\Filament\Widgets\TopScannedDomains::class,
+                \App\Filament\Widgets\RecentLeads::class,
             ])
             ->middleware([
                 EncryptCookies::class,
