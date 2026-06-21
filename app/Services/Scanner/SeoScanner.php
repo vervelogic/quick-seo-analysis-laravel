@@ -22,10 +22,13 @@ class SeoScanner
         ]);
 
         $fetch = $this->fetcher->fetch($scan->normalized_url);
-        $robotsFetch = $this->fetcher->fetch($this->domainAssetUrl($scan->normalized_url, 'robots.txt'));
+        $effectiveUrl = $fetch->finalUrl ?: $scan->normalized_url;
+        $robotsUrl = $this->domainAssetUrl($effectiveUrl, 'robots.txt');
+        $sitemapUrl = $this->domainAssetUrl($effectiveUrl, 'sitemap.xml');
+        $robotsFetch = $this->fetcher->fetch($robotsUrl);
         $sitemapUrlFromRobots = $this->sitemapFromRobots($robotsFetch->html);
-        $sitemapFetch = $this->fetcher->fetch($sitemapUrlFromRobots ?: $this->domainAssetUrl($scan->normalized_url, 'sitemap.xml'));
-        $parsed = $fetch->html ? $this->parser->parse($fetch->html, $fetch->finalUrl ?: $scan->normalized_url) : [
+        $sitemapFetch = $this->fetcher->fetch($sitemapUrlFromRobots ?: $sitemapUrl);
+        $parsed = $fetch->html ? $this->parser->parse($fetch->html, $effectiveUrl) : [
             'title' => '',
             'title_length' => 0,
             'meta_description' => null,
@@ -61,12 +64,12 @@ class SeoScanner
             'robots_txt' => [
                 'exists' => $robotsFetch->reachable,
                 'status' => $robotsFetch->status,
-                'url' => $this->domainAssetUrl($scan->normalized_url, 'robots.txt'),
+                'url' => $robotsUrl,
             ],
             'sitemap_xml' => [
                 'exists' => $sitemapFetch->reachable,
                 'status' => $sitemapFetch->status,
-                'url' => $sitemapUrlFromRobots ?: $this->domainAssetUrl($scan->normalized_url, 'sitemap.xml'),
+                'url' => $sitemapUrlFromRobots ?: $sitemapUrl,
                 'discovered_from_robots' => filled($sitemapUrlFromRobots),
             ],
             'mobile_viewport' => [
@@ -78,7 +81,7 @@ class SeoScanner
         $data = array_merge($parsed, [
             'http_status' => $fetch->status,
             'is_reachable' => $fetch->reachable,
-            'uses_https' => parse_url($scan->normalized_url, PHP_URL_SCHEME) === 'https',
+            'uses_https' => parse_url($effectiveUrl, PHP_URL_SCHEME) === 'https',
             'page_size_bytes' => $fetch->pageSizeBytes,
             'response_time_ms' => $fetch->responseTimeMs,
             'technical_data' => $technical,
@@ -88,7 +91,7 @@ class SeoScanner
 
         $score = $this->scorer->calculate($data);
         $visibility = $this->visibility->analyze(array_merge($data, $score, [
-            'url' => $scan->normalized_url,
+            'url' => $effectiveUrl,
         ]));
         $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], [
             'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
@@ -126,7 +129,8 @@ class SeoScanner
                 'opportunity_data' => $visibility['visibility_data']['opportunities'],
                 'score_breakdown' => $scoreBreakdown,
                 'raw' => [
-                    'final_url' => $fetch->finalUrl,
+                    'requested_url' => $scan->normalized_url,
+                    'final_url' => $effectiveUrl,
                     'error' => $fetch->error,
                     'headers' => $fetch->headers,
                 ],
