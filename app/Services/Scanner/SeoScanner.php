@@ -15,14 +15,14 @@ class SeoScanner
     ) {
     }
 
-    public function scan(Scan $scan): Scan
+    public function scan(Scan $scan, bool $allowHttpFallback = false): Scan
     {
         $scan->update([
             'status' => 'running',
             'started_at' => now(),
         ]);
 
-        $fetch = $this->fetcher->fetch($scan->normalized_url);
+        $fetch = $this->fetcher->fetch($scan->normalized_url, $allowHttpFallback);
         $effectiveUrl = $fetch->finalUrl ?: $scan->normalized_url;
         $robotsUrl = $this->domainAssetUrl($effectiveUrl, 'robots.txt');
         $sitemapUrl = $this->domainAssetUrl($effectiveUrl, 'sitemap.xml');
