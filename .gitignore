@@ -1,5 +1,9 @@
 /.phpunit.cache
 /.npm-cache
+/outputs
+/qsa-scanner-v2.patch
+/qsa-scanner-v2.bundle
+/work/ssh
 /node_modules
 /public/build
 /database/database.sqlite
@@ -18,8 +22,6 @@
 !/storage/framework/sessions/.gitignore
 /storage/framework/testing/*
 !/storage/framework/testing/.gitignore
-/storage/framework/views/*
-!/storage/framework/views/.gitignore
 /storage/logs/*
 !/storage/logs/.gitignore
 /vendor
