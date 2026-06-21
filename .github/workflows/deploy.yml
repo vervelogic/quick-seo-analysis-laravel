@@ -5,14 +5,37 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_mode:
+        description: Deployment path to use
+        required: true
+        default: self-hosted
+        type: choice
+        options:
+          - self-hosted
+          - ssh-fallback
 
 jobs:
-  deploy:
-    name: Deploy to WHM VPS
-    runs-on: ubuntu-latest
+  deploy-self-hosted:
+    name: Deploy on QSA VPS runner
+    if: github.event_name == 'push' || inputs.deploy_mode == 'self-hosted'
+    runs-on:
+      - self-hosted
+      - qsa
+    timeout-minutes: 20
 
     steps:
-      - name: Run VPS deploy script
+      - name: Run local VPS deploy script
+        run: /home/alphaver/deploy-qsa.sh
+
+  deploy-ssh-fallback:
+    name: Deploy through SSH fallback
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_mode == 'ssh-fallback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Run VPS deploy script over SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
