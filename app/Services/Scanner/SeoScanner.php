@@ -146,7 +146,8 @@ class SeoScanner
                 'opportunity_data' => $recommendations,
                 'score_breakdown' => $scoreBreakdown,
                 'raw' => [
-                    'requested_url' => $scan->normalized_url,
+                    'requested_url' => $scan->url,
+                    'scan_target_url' => $scan->normalized_url,
                     'final_url' => $effectiveUrl,
                     'redirect_chain' => $fetch->redirectChain,
                     'error' => $fetch->error,
