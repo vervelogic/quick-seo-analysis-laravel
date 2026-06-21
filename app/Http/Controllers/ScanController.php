@@ -27,6 +27,22 @@ class ScanController
                 'message' => $exception->getMessage(),
             ]);
 
+            $scan->result()->updateOrCreate(
+                ['scan_id' => $scan->id],
+                [
+                    'is_reachable' => false,
+                    'uses_https' => strtolower(parse_url($scan->normalized_url, PHP_URL_SCHEME) ?: '') === 'https',
+                    'score' => 0,
+                    'checks' => [],
+                    'recommendations' => [],
+                    'raw' => [
+                        'requested_url' => $scan->normalized_url,
+                        'final_url' => $scan->normalized_url,
+                        'error' => $exception->getMessage(),
+                    ],
+                ]
+            );
+
             $scan->update([
                 'status' => 'failed',
                 'error_message' => 'We could not complete this scan. Please check the URL and try again.',
