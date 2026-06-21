@@ -38,23 +38,42 @@ Linux
 x64
 ```
 
-GitHub will show a temporary registration token. Use that token in the commands below where `RUNNER_TOKEN_FROM_GITHUB` appears.
+GitHub will show commands similar to:
+
+```bash
+mkdir actions-runner && cd actions-runner
+curl -o actions-runner-linux-x64-...tar.gz -L https://github.com/actions/runner/releases/download/...
+tar xzf ./actions-runner-linux-x64-...tar.gz
+./config.sh --url https://github.com/vervelogic/quick-seo-analysis-laravel --token SOME_TEMP_TOKEN
+```
+
+Use GitHub's exact download and token values because the token expires and the runner version changes over time.
 
 ### 2. Install The Runner As alphaver
+
+First prepare the folder:
 
 ```bash
 mkdir -p /home/alphaver/actions-runner/qsa
 chown -R alphaver:alphaver /home/alphaver/actions-runner
+```
 
-sudo -u alphaver bash <<'EOF'
-set -e
+Then switch into the runner folder as `alphaver`:
+
+```bash
+sudo -u alphaver bash
 cd /home/alphaver/actions-runner/qsa
-curl -o actions-runner-linux-x64.tar.gz -L https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-2.325.0.tar.gz || true
-if [ ! -s actions-runner-linux-x64.tar.gz ]; then
-  echo "Download failed. Use the exact download command shown by GitHub's runner setup page."
-  exit 1
-fi
-tar xzf actions-runner-linux-x64.tar.gz
+```
+
+Now paste GitHub's runner download and extract commands, but run them inside:
+
+```text
+/home/alphaver/actions-runner/qsa
+```
+
+When you reach the `./config.sh` command, use this form so the runner gets the labels required by the workflow:
+
+```bash
 ./config.sh \
   --url https://github.com/vervelogic/quick-seo-analysis-laravel \
   --token RUNNER_TOKEN_FROM_GITHUB \
@@ -62,10 +81,13 @@ tar xzf actions-runner-linux-x64.tar.gz
   --labels qsa,production,whm \
   --work _work \
   --unattended
-EOF
 ```
 
-If the GitHub page shows a newer runner download URL, use GitHub's exact download line instead of the `curl` line above.
+Exit back to root:
+
+```bash
+exit
+```
 
 ### 3. Install Runner Service
 
