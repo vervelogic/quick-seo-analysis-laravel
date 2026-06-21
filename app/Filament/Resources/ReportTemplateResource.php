@@ -33,7 +33,11 @@ class ReportTemplateResource extends Resource
                 Tables\Columns\TextColumn::make('name')->searchable(),
                 Tables\Columns\TextColumn::make('company.name')->label('Company'),
                 Tables\Columns\IconColumn::make('is_default')->boolean(),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST')
+                    ->sortable(),
             ])
             ->actions([Tables\Actions\EditAction::make()])
             ->bulkActions([Tables\Actions\DeleteBulkAction::make()]);
