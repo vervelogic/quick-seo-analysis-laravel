@@ -3,6 +3,7 @@
 namespace App\Services\Scanner;
 
 use App\Models\Scan;
+use Illuminate\Support\Facades\Log;
 
 class SeoScanner
 {
@@ -29,37 +30,22 @@ class SeoScanner
         $robotsFetch = $this->fetcher->fetch($robotsUrl);
         $sitemapUrlFromRobots = $this->sitemapFromRobots($robotsFetch->html);
         $sitemapFetch = $this->fetcher->fetch($sitemapUrlFromRobots ?: $sitemapUrl);
-        $parsed = $fetch->html ? $this->parser->parse($fetch->html, $effectiveUrl) : [
-            'title' => '',
-            'title_length' => 0,
-            'meta_description' => null,
-            'meta_description_length' => 0,
-            'h1_count' => 0,
-            'canonical' => null,
-            'robots_meta' => null,
-            'viewport' => null,
-            'has_mobile_viewport' => false,
-            'internal_links_count' => 0,
-            'external_links_count' => 0,
-            'images_count' => 0,
-            'images_missing_alt_count' => 0,
-            'open_graph' => [],
-            'twitter_card' => [],
-            'schema' => [],
-            'content' => [
-                'visible_word_count' => 0,
-                'unique_word_count' => 0,
-                'thin_content' => true,
-                'content_html_ratio' => 0,
-                'questions' => [],
-                'entities' => [],
-                'footer_text' => '',
-                'visible_text' => '',
-            ],
-            'links' => [],
-            'headings' => [],
-            'heading_levels' => ['h1' => [], 'h2' => [], 'h3' => []],
-        ];
+        $parseError = null;
+        $parsed = $this->emptyParsedData();
+
+        if ($fetch->html) {
+            try {
+                $parsed = $this->parser->parse($fetch->html, $effectiveUrl);
+            } catch (\Throwable $exception) {
+                $parseError = $exception->getMessage();
+
+                Log::warning('SEO scan HTML parse failed; continuing with fetch data.', [
+                    'scan_id' => $scan->id,
+                    'url' => $effectiveUrl,
+                    'message' => $parseError,
+                ]);
+            }
+        }
 
         $security = $this->securityHeaders($fetch->headers);
         $performance = $this->performanceHeaders($fetch->headers, $fetch->responseTimeMs, $fetch->pageSizeBytes);
@@ -151,6 +137,7 @@ class SeoScanner
                     'final_url' => $effectiveUrl,
                     'redirect_chain' => $fetch->redirectChain,
                     'error' => $fetch->error,
+                    'parse_error' => $parseError,
                     'headers' => $fetch->headers,
                 ],
             ])
@@ -163,6 +150,41 @@ class SeoScanner
         ]);
 
         return $scan->refresh();
+    }
+
+    private function emptyParsedData(): array
+    {
+        return [
+            'title' => '',
+            'title_length' => 0,
+            'meta_description' => null,
+            'meta_description_length' => 0,
+            'h1_count' => 0,
+            'canonical' => null,
+            'robots_meta' => null,
+            'viewport' => null,
+            'has_mobile_viewport' => false,
+            'internal_links_count' => 0,
+            'external_links_count' => 0,
+            'images_count' => 0,
+            'images_missing_alt_count' => 0,
+            'open_graph' => [],
+            'twitter_card' => [],
+            'schema' => [],
+            'content' => [
+                'visible_word_count' => 0,
+                'unique_word_count' => 0,
+                'thin_content' => true,
+                'content_html_ratio' => 0,
+                'questions' => [],
+                'entities' => [],
+                'footer_text' => '',
+                'visible_text' => '',
+            ],
+            'links' => [],
+            'headings' => [],
+            'heading_levels' => ['h1' => [], 'h2' => [], 'h3' => []],
+        ];
     }
 
     private function domainAssetUrl(string $url, string $path): string
