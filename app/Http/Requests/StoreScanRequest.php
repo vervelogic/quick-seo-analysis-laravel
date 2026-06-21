@@ -31,6 +31,7 @@ class StoreScanRequest extends FormRequest
 
             $this->merge([
                 'url' => $normalized,
+                'original_url' => $rawUrl,
                 'normalized_url' => $normalized,
                 'scan_input_had_scheme' => $inputHadScheme,
             ]);
