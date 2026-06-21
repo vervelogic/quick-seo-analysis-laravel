@@ -13,7 +13,7 @@ class PageFetcher
     {
     }
 
-    public function fetch(string $url): PageFetchResult
+    public function fetch(string $url, bool $allowHttpFallback = false): PageFetchResult
     {
         $started = microtime(true);
         $maxBytes = config('qsa.scan_max_bytes');
@@ -21,7 +21,7 @@ class PageFetcher
         try {
             return $this->attemptFetch($url, $started, $maxBytes);
         } catch (\Throwable $exception) {
-            if ($this->canFallbackToHttp($url)) {
+            if ($allowHttpFallback && $this->canFallbackToHttp($url)) {
                 try {
                     return $this->attemptFetch($this->withScheme($url, 'http'), $started, $maxBytes);
                 } catch (\Throwable $fallbackException) {
