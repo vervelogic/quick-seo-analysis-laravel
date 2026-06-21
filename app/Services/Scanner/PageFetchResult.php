@@ -10,6 +10,7 @@ class PageFetchResult
         public readonly ?string $html,
         public readonly int $responseTimeMs,
         public readonly int $pageSizeBytes,
+        public readonly array $headers = [],
         public readonly ?string $finalUrl = null,
         public readonly ?string $error = null,
     ) {
