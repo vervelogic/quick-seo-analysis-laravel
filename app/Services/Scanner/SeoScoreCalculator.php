@@ -73,6 +73,8 @@ class SeoScoreCalculator
         ];
 
         $aiReadinessScore = $this->average(array_values($aiReadinessData));
+        $seoScore = (int) round(($technicalScore * 0.20) + ($onPageScore * 0.20) + ($contentScore * 0.16) + ($performanceScore * 0.12) + ($securityScore * 0.12) + ($socialScore * 0.10) + ($structuredDataScore * 0.10));
+        $overallScore = (int) round(($technicalScore * 0.18) + ($onPageScore * 0.18) + ($contentScore * 0.14) + ($performanceScore * 0.12) + ($securityScore * 0.12) + ($socialScore * 0.10) + ($structuredDataScore * 0.08) + ($aiReadinessScore * 0.08));
 
         $scoreBreakdown = [
             'technical_score' => $technicalScore,
@@ -83,23 +85,12 @@ class SeoScoreCalculator
             'social_score' => $socialScore,
             'structured_data_score' => $structuredDataScore,
             'ai_readiness_score' => $aiReadinessScore,
+            'seo_score' => $seoScore,
+            'overall_score' => $overallScore,
         ];
 
-        $overallScore = (int) round(
-            ($technicalScore * 0.18)
-            + ($onPageScore * 0.18)
-            + ($contentScore * 0.14)
-            + ($performanceScore * 0.12)
-            + ($securityScore * 0.12)
-            + ($socialScore * 0.10)
-            + ($structuredDataScore * 0.08)
-            + ($aiReadinessScore * 0.08)
-        );
-
-        $scoreBreakdown['overall_score'] = $overallScore;
-
         return [
-            'score' => $overallScore,
+            'score' => $seoScore,
             'checks' => $this->checks($data),
             'recommendations' => $this->recommendations($data, $scoreBreakdown),
             'score_breakdown' => $scoreBreakdown,
@@ -131,30 +122,24 @@ class SeoScoreCalculator
     private function recommendations(array $data, array $scores): array
     {
         $items = [];
-
-        $this->addIf($items, ! data_get($data, 'technical_data.robots_txt.exists'), 'Technical SEO', 'robots.txt was not found.', 'medium', 'Add a robots.txt file at the domain root.', 'Create /robots.txt and include crawler rules plus a Sitemap directive.');
-        $this->addIf($items, ! data_get($data, 'technical_data.sitemap_xml.exists'), 'Technical SEO', 'sitemap.xml was not found.', 'high', 'Publish an XML sitemap and reference it in robots.txt.', 'Generate /sitemap.xml from your CMS or framework and add "Sitemap: https://domain.com/sitemap.xml" to robots.txt.');
-        $this->addIf($items, ! ($data['has_mobile_viewport'] ?? false), 'Technical SEO', 'Mobile viewport meta tag is missing.', 'high', 'Add a responsive viewport meta tag.', 'Add <meta name="viewport" content="width=device-width, initial-scale=1"> inside <head>.');
-        $this->addIf($items, ($data['title_length'] ?? 0) < 20 || ($data['title_length'] ?? 0) > 65, 'On-Page SEO', 'Title tag length is outside the recommended range.', 'high', 'Use a focused 20-65 character title.', 'Rewrite the title to include the main topic, brand, and search intent.');
-        $this->addIf($items, ($data['meta_description_length'] ?? 0) < 70 || ($data['meta_description_length'] ?? 0) > 170, 'On-Page SEO', 'Meta description length is weak or missing.', 'medium', 'Add a clear 70-170 character meta description.', 'Write a benefit-led description that summarizes the page and encourages clicks.');
-        $this->addIf($items, ($data['h1_count'] ?? 0) !== 1, 'On-Page SEO', 'The page should have exactly one H1.', 'medium', 'Use one descriptive H1.', 'Make the primary page headline an H1 and demote extra H1s to H2/H3.');
-        $this->addIf($items, blank($data['canonical'] ?? null), 'On-Page SEO', 'Canonical URL is missing.', 'medium', 'Add a canonical tag.', 'Add <link rel="canonical" href="https://domain.com/page"> to the page head.');
-        $this->addIf($items, str_contains(strtolower((string) ($data['robots_meta'] ?? '')), 'noindex'), 'Technical SEO', 'Robots meta contains noindex.', 'high', 'Remove noindex if the page should rank.', 'Update the robots meta tag or CMS SEO settings to allow indexing.');
-        $this->addIf($items, (int) data_get($data, 'content.visible_word_count', 0) < 300, 'Content', 'Visible content appears thin.', 'high', 'Expand the page with useful, original content.', 'Add sections answering user questions, service details, proof points, FAQs, and internal links.');
-        $this->addIf($items, (float) data_get($data, 'content.content_html_ratio', 0) < 5, 'Content', 'Content-to-HTML ratio is low.', 'low', 'Reduce template weight or add more useful text.', 'Trim unnecessary markup/scripts and strengthen body copy.');
-        $this->addIf($items, ($data['internal_links_count'] ?? 0) === 0, 'Images & Links', 'No internal links were found.', 'medium', 'Add relevant internal links.', 'Link to related services, articles, pricing, contact, or important conversion pages.');
-        $this->addIf($items, ($data['images_missing_alt_count'] ?? 0) > 0, 'Images & Links', 'Some images are missing alt text.', 'medium', 'Add descriptive alt attributes.', 'Use concise alt text for meaningful images; leave decorative images empty only when appropriate.');
-        $this->addIf($items, (int) data_get($data, 'schema.json_ld_count', 0) === 0 && ! data_get($data, 'schema.has_microdata') && ! data_get($data, 'schema.has_rdfa'), 'Structured Data', 'No structured data was detected.', 'medium', 'Add JSON-LD schema.', 'Add Organization, WebSite, BreadcrumbList, Article, Product, LocalBusiness, or FAQ schema where relevant.');
-        $this->addIf($items, $scores['social_score'] < 70, 'Social Preview', 'Social preview metadata is incomplete.', 'low', 'Add Open Graph and Twitter Card tags.', 'Include og:title, og:description, og:image, og:url, og:type, twitter:card, twitter:title, twitter:description, and twitter:image.');
-        $this->addIf($items, ! data_get($data, 'performance_data.uses_compression'), 'Performance', 'Compression was not detected.', 'medium', 'Enable gzip or Brotli compression.', 'Enable compression in Apache/Nginx/CDN so text assets transfer faster.');
-        $this->addIf($items, blank(data_get($data, 'performance_data.cache_control')), 'Performance', 'Cache-Control header is missing.', 'low', 'Add caching headers for static assets.', 'Configure long-lived cache headers for versioned CSS, JS, and images.');
-        $this->addIf($items, $scores['security_score'] < 70, 'Security', 'Important security headers are missing.', 'medium', 'Add standard browser security headers.', 'Configure HSTS, X-Frame-Options, X-Content-Type-Options, CSP, and Referrer-Policy.');
-        $this->addIf($items, $scores['ai_readiness_score'] < 75, 'AI/GEO Readiness', 'AI readability signals can be improved.', 'medium', 'Make the page easier for search and AI systems to interpret.', 'Use clear titles, strong summaries, structured data, crawl guidance, substantial copy, and entity-rich content.');
+        $this->addIf($items, ! data_get($data, 'technical_data.robots_txt.exists'), 'Technical SEO', 'robots.txt was not found.', 'Search and AI crawlers use robots.txt for crawl guidance.', 'medium', 'low', 5, 'Add a robots.txt file at the domain root.', 'Create /robots.txt and include crawler rules plus a Sitemap directive.');
+        $this->addIf($items, ! data_get($data, 'technical_data.sitemap_xml.exists'), 'Technical SEO', 'sitemap.xml was not found.', 'Sitemaps help search and AI systems discover important URLs faster.', 'high', 'medium', 8, 'Publish an XML sitemap and reference it in robots.txt.', 'Generate /sitemap.xml from your CMS or framework and add a Sitemap directive to robots.txt.');
+        $this->addIf($items, ! ($data['has_mobile_viewport'] ?? false), 'Technical SEO', 'Mobile viewport meta tag is missing.', 'Mobile rendering issues can reduce usability and search quality signals.', 'high', 'low', 8, 'Add a responsive viewport meta tag.', 'Add a viewport meta tag inside the page head.');
+        $this->addIf($items, ($data['title_length'] ?? 0) < 20 || ($data['title_length'] ?? 0) > 65, 'On-Page SEO', 'Title tag length is outside the recommended range.', 'Titles are a primary relevance and citation signal.', 'high', 'low', 7, 'Use a focused 20-65 character title.', 'Rewrite the title to include the main topic, brand, and search intent.');
+        $this->addIf($items, ($data['meta_description_length'] ?? 0) < 70 || ($data['meta_description_length'] ?? 0) > 170, 'On-Page SEO', 'Meta description length is weak or missing.', 'Descriptions shape snippets and help users understand the page.', 'medium', 'low', 5, 'Add a clear 70-170 character meta description.', 'Write a benefit-led description that summarizes the page and encourages clicks.');
+        $this->addIf($items, ($data['h1_count'] ?? 0) !== 1, 'On-Page SEO', 'The page should have exactly one H1.', 'A clear H1 helps crawlers and answer engines identify the main topic.', 'medium', 'low', 4, 'Use one descriptive H1.', 'Make the primary page headline an H1 and demote extra H1s to H2/H3.');
+        $this->addIf($items, blank($data['canonical'] ?? null), 'On-Page SEO', 'Canonical URL is missing.', 'Canonicals reduce duplicate-content ambiguity.', 'medium', 'low', 4, 'Add a canonical tag.', 'Add a canonical link tag to the page head.');
+        $this->addIf($items, str_contains(strtolower((string) ($data['robots_meta'] ?? '')), 'noindex'), 'Technical SEO', 'Robots meta contains noindex.', 'A noindex tag can prevent search and AI discovery entirely.', 'high', 'low', 15, 'Remove noindex if the page should rank.', 'Update robots meta or CMS SEO settings to allow indexing.');
+        $this->addIf($items, (int) data_get($data, 'content.visible_word_count', 0) < 300, 'Content', 'Visible content appears thin.', 'Thin pages are harder for AI systems to summarize and cite confidently.', 'high', 'medium', 10, 'Expand the page with useful, original content.', 'Add sections answering user questions, service details, proof points, FAQs, and internal links.');
+        $this->addIf($items, ($data['images_missing_alt_count'] ?? 0) > 0, 'Images & Links', 'Some images are missing alt text.', 'Alt text improves accessibility and image/content interpretation.', 'medium', 'low', 4, 'Add descriptive alt attributes.', 'Use concise alt text for meaningful images.');
+        $this->addIf($items, (int) data_get($data, 'schema.json_ld_count', 0) === 0 && ! data_get($data, 'schema.has_microdata') && ! data_get($data, 'schema.has_rdfa'), 'Structured Data', 'No structured data was detected.', 'Structured data helps search and AI systems classify entities and page purpose.', 'medium', 'medium', 8, 'Add JSON-LD schema.', 'Add Organization, WebSite, BreadcrumbList, Article, Product, LocalBusiness, or FAQ schema where relevant.');
+        $this->addIf($items, $scores['social_score'] < 70, 'Social Preview', 'Social preview metadata is incomplete.', 'Social metadata improves previews and reinforces page entities.', 'low', 'low', 3, 'Add Open Graph and Twitter Card tags.', 'Include core Open Graph and Twitter Card tags.');
+        $this->addIf($items, $scores['security_score'] < 70, 'Security', 'Important security headers are missing.', 'Security headers improve browser safety and trust posture.', 'medium', 'medium', 5, 'Add standard browser security headers.', 'Configure HSTS, X-Frame-Options, X-Content-Type-Options, CSP, and Referrer-Policy.');
 
         return $items;
     }
 
-    private function addIf(array &$items, bool $condition, string $category, string $issue, string $impact, string $recommendation, string $howToFix): void
+    private function addIf(array &$items, bool $condition, string $category, string $issue, string $whyItMatters, string $impact, string $difficulty, int $estimatedGain, string $recommendation, string $howToFix): void
     {
         if (! $condition) {
             return;
@@ -163,7 +148,10 @@ class SeoScoreCalculator
         $items[] = [
             'category' => $category,
             'issue' => $issue,
+            'why_it_matters' => $whyItMatters,
             'impact' => $impact,
+            'difficulty' => $difficulty,
+            'estimated_gain' => $estimatedGain,
             'recommendation' => $recommendation,
             'how_to_fix' => $howToFix,
         ];
@@ -175,8 +163,6 @@ class SeoScoreCalculator
             return 0;
         }
 
-        $passed = count(array_filter($checks));
-
-        return (int) round(($passed / count($checks)) * 100);
+        return (int) round((count(array_filter($checks)) / count($checks)) * 100);
     }
 }
