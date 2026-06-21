@@ -35,7 +35,11 @@ class CompanyResource extends Resource
                 Tables\Columns\TextColumn::make('domain')->searchable(),
                 Tables\Columns\TextColumn::make('users_count')->counts('users')->label('Users'),
                 Tables\Columns\TextColumn::make('scans_count')->counts('scans')->label('Scans'),
-                Tables\Columns\TextColumn::make('created_at')->dateTime()->sortable(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST')
+                    ->sortable(),
             ])
             ->actions([Tables\Actions\EditAction::make()])
             ->bulkActions([Tables\Actions\DeleteBulkAction::make()]);
