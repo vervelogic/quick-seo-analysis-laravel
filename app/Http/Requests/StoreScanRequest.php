@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests;
 
+use App\Services\Scanner\PublicUrlGuard;
 use App\Services\Scanner\UrlNormalizer;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 class StoreScanRequest extends FormRequest
 {
@@ -29,5 +31,18 @@ class StoreScanRequest extends FormRequest
                 'normalized_url' => $normalized,
             ]);
         }
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $url = (string) $this->input('normalized_url');
+
+                if ($url !== '' && ! app(PublicUrlGuard::class)->isAllowed($url)) {
+                    $validator->errors()->add('url', 'Enter a public website URL. Private IPs, localhost, credentials, and custom ports cannot be scanned.');
+                }
+            },
+        ];
     }
 }
