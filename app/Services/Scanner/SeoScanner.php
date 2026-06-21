@@ -131,6 +131,7 @@ class SeoScanner
                 'raw' => [
                     'requested_url' => $scan->normalized_url,
                     'final_url' => $effectiveUrl,
+                    'redirect_chain' => $fetch->redirectChain,
                     'error' => $fetch->error,
                     'headers' => $fetch->headers,
                 ],
