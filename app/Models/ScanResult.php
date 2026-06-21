@@ -31,6 +31,15 @@ class ScanResult extends Model
         'score',
         'checks',
         'recommendations',
+        'technical_data',
+        'on_page_data',
+        'content_data',
+        'performance_data',
+        'security_data',
+        'social_data',
+        'structured_data',
+        'ai_readiness_data',
+        'score_breakdown',
         'raw',
     ];
 
@@ -39,6 +48,15 @@ class ScanResult extends Model
         'uses_https' => 'boolean',
         'checks' => 'array',
         'recommendations' => 'array',
+        'technical_data' => 'array',
+        'on_page_data' => 'array',
+        'content_data' => 'array',
+        'performance_data' => 'array',
+        'security_data' => 'array',
+        'social_data' => 'array',
+        'structured_data' => 'array',
+        'ai_readiness_data' => 'array',
+        'score_breakdown' => 'array',
         'raw' => 'array',
     ];
 
