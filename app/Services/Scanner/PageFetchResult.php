@@ -13,6 +13,7 @@ class PageFetchResult
         public readonly array $headers = [],
         public readonly ?string $finalUrl = null,
         public readonly ?string $error = null,
+        public readonly array $redirectChain = [],
     ) {
     }
 }
