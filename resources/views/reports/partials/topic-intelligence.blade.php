@@ -4,7 +4,101 @@
     $promptIntel = $promptIntel ?? [];
     $coverage = $coverage ?? [];
     $citation = $citation ?? [];
+    $keywordTargeting = $keywordTargeting ?? ($result?->keyword_targeting_data ?? []);
+    $primaryKeyword = data_get($keywordTargeting, 'primary_target_keyword');
 @endphp
+
+<section class="{{ $sectionCard }}">
+    <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Keyword Targeting Intelligence</p>
+            <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">What keyword this page appears to target</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Inferred from title, meta description, URL, headings, content frequency, internal anchors, schema and location/service signals. No external keyword API used.</p>
+        </div>
+        @if ($primaryKeyword)
+            <span class="w-fit rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 ring-1 ring-emerald-100">{{ data_get($primaryKeyword, 'confidence', 0) }}% confidence</span>
+        @endif
+    </div>
+
+    @if ($primaryKeyword)
+        <div class="mt-6 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+            <div class="rounded-xl border border-emerald-100 bg-gradient-to-br from-emerald-50 to-white p-5">
+                <p class="text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">Primary Target Keyword</p>
+                <h3 class="mt-3 text-3xl font-black tracking-tight text-slate-950">{{ data_get($primaryKeyword, 'keyword') }}</h3>
+                <p class="mt-3 text-sm leading-6 text-slate-700">{{ data_get($primaryKeyword, 'evidence') }}</p>
+                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                    <div class="rounded-lg bg-white p-4 ring-1 ring-emerald-100">
+                        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Search Intent</p>
+                        <p class="mt-2 text-lg font-black text-slate-950">{{ data_get($primaryKeyword, 'intent', data_get($keywordTargeting, 'keyword_intent', 'N/A')) }}</p>
+                    </div>
+                    <div class="rounded-lg bg-white p-4 ring-1 ring-emerald-100">
+                        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Content Support</p>
+                        <p class="mt-2 text-lg font-black text-slate-950">{{ data_get($primaryKeyword, 'content_support_score', data_get($keywordTargeting, 'content_support_score', 0)) }}/100</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-5">
+                <h3 class="font-black text-slate-950">Supporting Keywords</h3>
+                <div class="mt-4 space-y-3">
+                    @forelse (array_slice((array) data_get($keywordTargeting, 'supporting_keywords', []), 0, 8) as $item)
+                        <div class="flex items-start justify-between gap-4 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
+                            <div>
+                                <p class="font-bold text-slate-950">{{ data_get($item, 'keyword') }}</p>
+                                <p class="mt-1 text-xs leading-5 text-slate-600">{{ data_get($item, 'evidence') }}</p>
+                            </div>
+                            <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-xs font-black text-slate-700 ring-1 ring-slate-200">{{ data_get($item, 'confidence', 0) }}%</span>
+                        </div>
+                    @empty
+                        <p class="text-sm text-slate-500">Supporting keywords will appear after the page has enough keyword evidence.</p>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 grid gap-5 lg:grid-cols-2">
+            <div class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <h3 class="font-black text-slate-950">Detected Service & Location Signals</h3>
+                <div class="mt-4 space-y-4">
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Services</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @forelse ((array) data_get($keywordTargeting, 'detected_services', []) as $service)
+                                <span class="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 ring-1 ring-slate-200">{{ $service }}</span>
+                            @empty
+                                <span class="text-sm text-slate-500">No service modifiers detected yet.</span>
+                            @endforelse
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Locations</p>
+                        <div class="mt-2 flex flex-wrap gap-2">
+                            @forelse ((array) data_get($keywordTargeting, 'detected_locations', []) as $location)
+                                <span class="rounded-full bg-white px-3 py-1.5 text-sm font-bold text-slate-700 ring-1 ring-slate-200">{{ $location }}</span>
+                            @empty
+                                <span class="text-sm text-slate-500">No location modifiers detected yet.</span>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <h3 class="font-black text-slate-950">Keyword Opportunities</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Terms this page could support with stronger headings, FAQ answers, examples, pricing/process copy, local proof or internal links.</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    @forelse ((array) data_get($keywordTargeting, 'keyword_opportunities', []) as $keyword)
+                        <span class="rounded-full bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-800 ring-1 ring-blue-100">{{ $keyword }}</span>
+                    @empty
+                        <span class="text-sm text-slate-500">No obvious keyword opportunities detected yet.</span>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+    @else
+        <div class="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-5 text-sm leading-6 text-slate-600">Keyword targeting intelligence will appear after a fresh scan with enough title, heading or content evidence.</div>
+    @endif
+</section>
 
 <section class="{{ $sectionCard }}">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
