@@ -6,14 +6,23 @@ use Illuminate\Support\Facades\Http;
 
 class PageFetcher
 {
+    public function __construct(private readonly PublicUrlGuard $urlGuard)
+    {
+    }
+
     public function fetch(string $url): PageFetchResult
     {
         $started = microtime(true);
         $maxBytes = config('qsa.scan_max_bytes');
 
         try {
+            $this->urlGuard->assertAllowed($url);
+
             $response = Http::timeout(config('qsa.scan_timeout'))
                 ->connectTimeout(6)
+                ->withOptions([
+                    'allow_redirects' => false,
+                ])
                 ->withHeaders([
                     'User-Agent' => config('app.name').' SEO Scanner (+'.config('app.url').')',
                     'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
