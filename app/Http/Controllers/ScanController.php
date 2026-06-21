@@ -13,7 +13,7 @@ class ScanController
     public function __invoke(StoreScanRequest $request, SeoScanner $scanner): RedirectResponse
     {
         $scan = Scan::query()->create([
-            'url' => $request->validated('url'),
+            'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
             'status' => 'pending',
         ]);
@@ -36,7 +36,8 @@ class ScanController
                     'checks' => [],
                     'recommendations' => [],
                     'raw' => [
-                        'requested_url' => $scan->normalized_url,
+                        'requested_url' => $scan->url,
+                        'scan_target_url' => $scan->normalized_url,
                         'final_url' => $scan->normalized_url,
                         'error' => $exception->getMessage(),
                     ],
