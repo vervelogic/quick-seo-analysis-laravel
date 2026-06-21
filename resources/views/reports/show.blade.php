@@ -11,6 +11,11 @@
         $aiVisibility = $result?->ai_visibility_data ?? [];
         $geo = $result?->geo_data ?? [];
         $aeo = $result?->aeo_data ?? [];
+        $topicIntel = $result?->topic_intelligence_data ?? [];
+        $rankingPotential = $result?->ranking_potential_data ?? [];
+        $promptIntel = $result?->prompt_intelligence_data ?? [];
+        $coverage = $result?->content_coverage_data ?? [];
+        $citation = $result?->ai_citation_readiness_data ?? [];
         $raw = $result?->raw ?? [];
         $timezone = config('app.timezone', 'Asia/Kolkata');
         $formatDate = fn ($date) => $date ? $date->copy()->timezone($timezone)->format('d M Y, h:i A').' IST' : 'N/A';
@@ -121,6 +126,8 @@
                 ] as $sectionTitle => $section)
                     <section class="{{ $sectionCard }}"><h2 class="text-2xl font-black tracking-tight text-slate-950">{{ $sectionTitle }}</h2><p class="mt-2 text-sm leading-6 text-slate-600">{{ $section['description'] }}</p><div class="mt-5 grid gap-3 sm:grid-cols-2">@forelse ($section['data'] as $signal => $ok)<div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold text-slate-900">{{ $label($signal) }}</span><span class="rounded-full px-3 py-1 text-sm font-bold ring-1 {{ $statusPill((bool) $ok) }}">{{ $ok ? $section['positive'] : $section['negative'] }}</span></div>@empty<div class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">No {{ $sectionTitle }} signals were recorded for this scan.</div>@endforelse</div></section>
                 @endforeach
+
+                @include('reports.partials.topic-intelligence')
 
                 <section class="{{ $sectionCard }}"><h2 class="text-2xl font-black tracking-tight text-slate-950">Technical SEO</h2><div class="mt-5 grid gap-3 sm:grid-cols-2">@foreach (['Reachable' => $result?->is_reachable, 'HTTPS' => $result?->uses_https, 'robots.txt' => data_get($technical, 'robots_txt.exists'), 'sitemap.xml' => data_get($technical, 'sitemap_xml.exists'), 'Mobile viewport' => data_get($technical, 'mobile_viewport.exists')] as $technicalLabel => $ok)<div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold text-slate-900">{{ $technicalLabel }}</span><span class="rounded-full px-3 py-1 text-sm font-bold ring-1 {{ $statusPill((bool) $ok) }}">{{ $ok ? 'Passed' : 'Needs work' }}</span></div>@endforeach</div></section>
 
