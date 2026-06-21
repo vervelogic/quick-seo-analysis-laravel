@@ -19,7 +19,7 @@ class ScanController
         ]);
 
         try {
-            $scanner->scan($scan);
+            $scanner->scan($scan, allowHttpFallback: ! $request->boolean('scan_input_had_scheme'));
         } catch (\Throwable $exception) {
             Log::warning('SEO scan failed.', [
                 'scan_id' => $scan->id,
