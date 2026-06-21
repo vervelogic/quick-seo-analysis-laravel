@@ -18,17 +18,21 @@ class StoreScanRequest extends FormRequest
     {
         return [
             'url' => ['required', 'string', 'max:2048', 'url:http,https'],
+            'scan_input_had_scheme' => ['nullable', 'boolean'],
         ];
     }
 
     protected function prepareForValidation(): void
     {
         if ($this->filled('url')) {
-            $normalized = app(UrlNormalizer::class)->normalize($this->string('url')->toString());
+            $rawUrl = trim($this->string('url')->toString());
+            $inputHadScheme = (bool) preg_match('/^https?:\/\//i', $rawUrl);
+            $normalized = app(UrlNormalizer::class)->normalize($rawUrl);
 
             $this->merge([
                 'url' => $normalized,
                 'normalized_url' => $normalized,
+                'scan_input_had_scheme' => $inputHadScheme,
             ]);
         }
     }
