@@ -16,6 +16,8 @@
         $requestedUrl = data_get($raw, 'requested_url') ?: $scan->normalized_url;
         $host = parse_url($effectiveUrl, PHP_URL_HOST) ?: parse_url($scan->normalized_url, PHP_URL_HOST) ?: $scan->normalized_url;
         $scheme = parse_url($effectiveUrl, PHP_URL_SCHEME) ?: parse_url($scan->normalized_url, PHP_URL_SCHEME) ?: 'https';
+        $pageTitle = $result?->title ?: data_get($result?->on_page_data ?? [], 'title');
+        $metaDescription = $result?->meta_description ?: data_get($result?->on_page_data ?? [], 'meta_description');
         $opportunities = collect($result?->opportunity_data ?? $result?->recommendations ?? []);
         $scores = [
             'Overall Visibility' => $scoreBreakdown['overall_visibility_score'] ?? $result?->score ?? 0,
@@ -24,20 +26,22 @@
             'GEO' => $scoreBreakdown['geo_score'] ?? data_get($geo, 'score', 0),
             'AEO' => $scoreBreakdown['aeo_score'] ?? data_get($aeo, 'score', 0),
         ];
+        $scoreExplanations = [
+            'SEO' => 'Core technical, on-page, content, link and performance signals search engines rely on.',
+            'AI Visibility' => 'Brand, entity, trust and expertise signals that help AI systems understand the business.',
+            'GEO' => 'Generative Engine Optimization signals for semantic coverage, content depth and conversational discovery.',
+            'AEO' => 'Answer Engine Optimization signals for FAQ, direct-answer and featured-snippet readiness.',
+            'Overall Visibility' => 'A combined view of search visibility plus AI, GEO and answer-engine readiness.',
+        ];
         $overall = (int) $scores['Overall Visibility'];
         $scoreText = fn ($score) => $score >= 80 ? 'text-teal-600' : ($score >= 55 ? 'text-amber-600' : 'text-red-600');
         $scoreBg = fn ($score) => $score >= 80 ? 'bg-teal-600' : ($score >= 55 ? 'bg-amber-500' : 'bg-red-500');
         $statusPill = fn ($ok) => $ok ? 'bg-teal-100 text-teal-800 ring-teal-200' : 'bg-red-100 text-red-700 ring-red-200';
         $softPill = fn ($score) => $score >= 80 ? 'bg-teal-50 text-teal-800 ring-teal-100' : ($score >= 55 ? 'bg-amber-50 text-amber-800 ring-amber-100' : 'bg-red-50 text-red-700 ring-red-100');
+        $impactPill = fn ($impact) => $impact === 'high' ? 'bg-red-50 text-red-700 ring-red-100' : ($impact === 'medium' ? 'bg-amber-50 text-amber-800 ring-amber-100' : 'bg-slate-50 text-slate-700 ring-slate-200');
         $label = fn ($key) => str($key)->replace('_', ' ')->headline();
         $sectionCard = 'rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6';
         $metricCard = 'rounded-lg border border-slate-200 bg-white p-4 shadow-sm';
-        $radarScores = collect($scores)->except('Overall Visibility');
-        $radarPoints = $radarScores->values()->map(function ($score, $index) use ($radarScores) {
-            $angle = -90 + ($index * (360 / max(1, $radarScores->count())));
-            $radius = 18 + (max(0, min(100, (int) $score)) / 100) * 72;
-            return round(100 + cos(deg2rad($angle)) * $radius, 1).','.round(100 + sin(deg2rad($angle)) * $radius, 1);
-        })->implode(' ');
     @endphp
 
     <section class="relative overflow-hidden bg-slate-950 py-12 sm:py-16">
@@ -119,18 +123,20 @@
                             </div>
                         @endforeach
                     </div>
-                    <div class="mt-6 grid gap-5 xl:grid-cols-[320px_1fr]">
+                    <div class="mt-6 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
                         <div class="rounded-lg border border-slate-200 bg-slate-50 p-5">
-                            <h3 class="font-black text-slate-950">Radar chart</h3>
-                            <svg viewBox="0 0 200 200" class="mt-4 h-64 w-full" role="img" aria-label="Visibility radar chart">
-                                <polygon points="100,20 180,100 100,180 20,100" fill="none" stroke="#cbd5e1" />
-                                <polygon points="100,48 152,100 100,152 48,100" fill="none" stroke="#e2e8f0" />
-                                <line x1="100" y1="100" x2="100" y2="20" stroke="#e2e8f0" />
-                                <line x1="100" y1="100" x2="180" y2="100" stroke="#e2e8f0" />
-                                <line x1="100" y1="100" x2="100" y2="180" stroke="#e2e8f0" />
-                                <line x1="100" y1="100" x2="20" y2="100" stroke="#e2e8f0" />
-                                <polygon points="{{ $radarPoints }}" fill="rgba(15,118,110,.24)" stroke="#0f766e" stroke-width="3" />
-                            </svg>
+                            <h3 class="font-black text-slate-950">Visibility Score Explanation</h3>
+                            <div class="mt-4 space-y-3">
+                                @foreach ($scoreExplanations as $scoreLabel => $description)
+                                    <div class="rounded-lg bg-white p-4 ring-1 ring-slate-200">
+                                        <div class="flex items-start justify-between gap-4">
+                                            <p class="font-bold text-slate-950">{{ $scoreLabel }}</p>
+                                            <span class="rounded-full px-2.5 py-1 text-xs font-black ring-1 {{ $softPill($scores[$scoreLabel] ?? 0) }}">{{ (int) ($scores[$scoreLabel] ?? 0) }}</span>
+                                        </div>
+                                        <p class="mt-2 text-sm leading-6 text-slate-600">{{ $description }}</p>
+                                    </div>
+                                @endforeach
+                            </div>
                         </div>
                         <div class="rounded-lg border border-slate-200 bg-white p-5">
                             <h3 class="font-black text-slate-950">Category score chart</h3>
@@ -278,16 +284,22 @@
                     <div class="mt-5 space-y-4">
                         @forelse ($opportunities as $item)
                             @if (is_array($item))
+                                @php
+                                    $impact = strtolower($item['impact'] ?? 'medium');
+                                @endphp
                                 <div class="rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-5 shadow-sm">
                                     <div class="flex flex-wrap gap-2">
                                         <span class="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-blue-900 ring-1 ring-blue-100">{{ $item['category'] ?? 'Visibility' }}</span>
-                                        <span class="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-700 ring-1 ring-slate-200">{{ $item['impact'] ?? 'medium' }} impact</span>
-                                        <span class="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-700 ring-1 ring-slate-200">{{ $item['difficulty'] ?? 'medium' }} difficulty</span>
-                                        <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-teal-800">+{{ $item['estimated_gain'] ?? 3 }} gain</span>
+                                        <span class="rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] ring-1 {{ $impactPill($impact) }}">Impact: {{ $item['impact'] ?? 'medium' }}</span>
+                                        <span class="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-slate-700 ring-1 ring-slate-200">Difficulty: {{ $item['difficulty'] ?? 'medium' }}</span>
+                                        <span class="rounded-full bg-teal-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-teal-800">Estimated gain: +{{ $item['estimated_gain'] ?? 3 }}</span>
                                     </div>
                                     <p class="mt-4 text-lg font-black text-blue-950">{{ $item['issue'] ?? '' }}</p>
                                     <p class="mt-2 text-sm leading-6 text-blue-950">{{ $item['why_it_matters'] ?? $item['recommendation'] ?? '' }}</p>
-                                    <p class="mt-3 rounded-lg bg-white p-3 text-sm leading-6 text-slate-700 ring-1 ring-slate-200"><span class="font-bold">How to fix:</span> {{ $item['how_to_fix'] ?? '' }}</p>
+                                    <div class="mt-4 rounded-lg bg-white p-4 text-sm leading-6 text-slate-700 ring-1 ring-slate-200">
+                                        <p class="font-black text-slate-950">How to Fix</p>
+                                        <p class="mt-1">{{ $item['how_to_fix'] ?? 'Review this item with your SEO team and update the page accordingly.' }}</p>
+                                    </div>
                                 </div>
                             @else
                                 <div class="rounded-xl border border-blue-100 bg-blue-50 p-5 text-sm font-medium leading-6 text-blue-950">{{ $item }}</div>
@@ -295,6 +307,20 @@
                         @empty
                             <div class="rounded-lg border border-teal-100 bg-teal-50 p-4 text-sm font-medium text-teal-900">Strong baseline. Keep monitoring visibility.</div>
                         @endforelse
+                    </div>
+                </section>
+
+                <section class="overflow-hidden rounded-xl border border-slate-200 bg-slate-950 p-6 shadow-sm sm:p-8">
+                    <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                            <p class="text-sm font-semibold uppercase tracking-[0.18em] text-teal-300">Next Step</p>
+                            <h2 class="mt-2 text-2xl font-black tracking-tight text-white">Want us to fix these issues?</h2>
+                            <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Turn this report into a prioritized implementation plan for technical SEO, content, AI visibility, GEO and AEO.</p>
+                        </div>
+                        <div class="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
+                            <a href="mailto:hello@vervelogic.com?subject=QSA%20Strategy%20Call%20for%20{{ urlencode($host) }}" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-5 font-bold text-slate-950 hover:bg-slate-100">Book Strategy Call</a>
+                            <a href="https://wa.me/?text={{ urlencode('I want help fixing the QSA report issues for '.$effectiveUrl) }}" target="_blank" rel="noopener" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-teal-500 px-5 font-bold text-white hover:bg-teal-400">WhatsApp</a>
+                        </div>
                     </div>
                 </section>
 
@@ -327,15 +353,20 @@
                     <div class="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-slate-950">
                         <div class="flex gap-1 border-b border-white/10 bg-slate-900 px-4 py-3"><span class="h-2.5 w-2.5 rounded-full bg-red-400"></span><span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span><span class="h-2.5 w-2.5 rounded-full bg-teal-400"></span></div>
                         <div class="bg-white p-5">
-                            <div class="h-8 w-2/3 rounded bg-slate-200"></div>
-                            <div class="mt-4 h-3 w-full rounded bg-slate-100"></div>
-                            <div class="mt-2 h-3 w-5/6 rounded bg-slate-100"></div>
-                            <div class="mt-5 grid grid-cols-3 gap-2"><div class="h-16 rounded bg-blue-100"></div><div class="h-16 rounded bg-teal-100"></div><div class="h-16 rounded bg-slate-100"></div></div>
+                            <p class="break-words text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Scanned URL</p>
+                            <p class="mt-2 break-words text-sm font-bold text-slate-950">{{ $effectiveUrl }}</p>
+                            <div class="mt-5 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
+                                <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Page title</p>
+                                <p class="mt-2 break-words text-sm font-black leading-6 text-slate-950">{{ filled($pageTitle) ? $pageTitle : 'No title detected' }}</p>
+                            </div>
+                            <div class="mt-3 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200">
+                                <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Meta description</p>
+                                <p class="mt-2 break-words text-sm leading-6 text-slate-700">{{ filled($metaDescription) ? $metaDescription : 'No meta description detected' }}</p>
+                            </div>
                         </div>
                     </div>
-                    <p class="mt-4 break-words text-sm leading-6 text-slate-600">{{ $effectiveUrl }}</p>
                     @if ($requestedUrl !== $effectiveUrl)
-                        <p class="mt-2 break-words text-xs font-medium text-slate-500">Requested: {{ $requestedUrl }}</p>
+                        <p class="mt-3 break-words text-xs font-medium text-slate-500">Requested: {{ $requestedUrl }}</p>
                     @endif
                 </section>
 
