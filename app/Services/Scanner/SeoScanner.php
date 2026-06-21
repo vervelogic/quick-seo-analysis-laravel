@@ -13,6 +13,7 @@ class SeoScanner
         private readonly SeoScoreCalculator $scorer,
         private readonly VisibilitySignalAnalyzer $visibility,
         private readonly TopicIntelligenceAnalyzer $topicIntelligence,
+        private readonly KeywordTargetingAnalyzer $keywordTargeting,
     ) {
     }
 
@@ -78,13 +79,13 @@ class SeoScanner
             'performance_data' => $performance,
         ]);
 
+        $analysisInput = array_merge($data, [
+            'url' => $effectiveUrl,
+        ]);
         $score = $this->scorer->calculate($data);
-        $visibility = $this->visibility->analyze(array_merge($data, $score, [
-            'url' => $effectiveUrl,
-        ]));
-        $topicIntelligence = $this->topicIntelligence->analyze(array_merge($data, $score, $visibility, [
-            'url' => $effectiveUrl,
-        ]));
+        $visibility = $this->visibility->analyze(array_merge($analysisInput, $score));
+        $topicIntelligence = $this->topicIntelligence->analyze(array_merge($analysisInput, $score, $visibility));
+        $keywordTargeting = $this->keywordTargeting->analyze($analysisInput);
         $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], $topicIntelligence['score_breakdown'], [
             'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
         ]);
@@ -128,6 +129,7 @@ class SeoScanner
                 'prompt_intelligence_data' => $topicIntelligence['prompt_intelligence_data'],
                 'content_coverage_data' => $topicIntelligence['content_coverage_data'],
                 'ai_citation_readiness_data' => $topicIntelligence['ai_citation_readiness_data'],
+                'keyword_targeting_data' => $keywordTargeting,
                 'visibility_data' => $visibility['visibility_data'],
                 'opportunity_data' => $recommendations,
                 'score_breakdown' => $scoreBreakdown,
