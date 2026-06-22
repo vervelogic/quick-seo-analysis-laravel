@@ -49,4 +49,36 @@ class KeywordTargetingAnalyzerTest extends TestCase
         $this->assertNotEmpty($result['commercial_opportunity_analysis']['present_modifiers']);
         $this->assertArrayHasKey('content_expansion_opportunities', $result['content_coverage_analysis']);
     }
+
+    public function test_it_prefers_specific_commercial_phrase_over_short_topic(): void
+    {
+        $analyzer = new KeywordTargetingAnalyzer();
+
+        $result = $analyzer->analyze([
+            'url' => 'https://vaayuaviation.com/char-dham-yatra-packages/',
+            'title' => 'Char Dham Yatra Packages by Helicopter | Vaayu Aviation',
+            'meta_description' => 'Explore Char Dham Yatra packages with helicopter booking, VIP travel support, itinerary planning and family package options.',
+            'heading_levels' => [
+                'h1' => ['Char Dham Yatra Packages'],
+                'h2' => ['Char Dham Yatra Package Cost', 'VIP Helicopter Packages', 'Family Travel Packages'],
+                'h3' => [],
+            ],
+            'content' => [
+                'visible_text' => 'Our Char Dham Yatra packages help families book helicopter travel, VIP darshan support, itinerary guidance, package cost details and luxury travel assistance. Char Dham Yatra package enquiries are handled by our travel team.',
+                'questions' => ['What is included in Char Dham Yatra packages?', 'How much does a Char Dham Yatra package cost?'],
+            ],
+            'links' => [],
+            'schema' => [
+                'types' => ['Service', 'FAQPage'],
+            ],
+        ]);
+
+        $this->assertSame('Char Dham Yatra Packages', $result['current_search_focus']['phrase']);
+        $this->assertGreaterThanOrEqual(90, $result['current_search_focus']['confidence']);
+        $this->assertSame('Transactional', $result['current_search_focus']['intent']);
+        $this->assertNotSame('Char Dham', $result['current_search_focus']['phrase']);
+        $this->assertNotEmpty($result['page_goal_analysis']);
+        $this->assertNotEmpty($result['business_impact_summary']);
+        $this->assertArrayHasKey('priority_gaps', $result['content_coverage_analysis']);
+    }
 }
