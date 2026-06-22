@@ -130,6 +130,8 @@
                 </section>
 
                 @unless ($scanFailed)
+                    @include('reports.partials.topic-intelligence')
+
                     <section class="{{ $sectionCard }}">
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><p class="text-sm font-semibold uppercase tracking-[0.18em] text-teal-700">Score Breakdown</p><h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">Overall Visibility, SEO, AI Visibility, GEO and AEO</h2></div></div>
                         <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
@@ -150,8 +152,6 @@
                     ] as $sectionTitle => $section)
                         <section class="{{ $sectionCard }}"><h2 class="text-2xl font-black tracking-tight text-slate-950">{{ $sectionTitle }}</h2><p class="mt-2 text-sm leading-6 text-slate-600">{{ $section['description'] }}</p><div class="mt-5 grid gap-3 sm:grid-cols-2">@forelse ($section['data'] as $signal => $ok)<div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold text-slate-900">{{ $label($signal) }}</span><span class="rounded-full px-3 py-1 text-sm font-bold ring-1 {{ $statusPill((bool) $ok) }}">{{ $ok ? $section['positive'] : $section['negative'] }}</span></div>@empty<div class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">No {{ $sectionTitle }} signals were recorded for this scan.</div>@endforelse</div></section>
                     @endforeach
-
-                    @include('reports.partials.topic-intelligence')
 
                     <section class="{{ $sectionCard }}"><h2 class="text-2xl font-black tracking-tight text-slate-950">Technical SEO</h2><div class="mt-5 grid gap-3 sm:grid-cols-2">@foreach (['Reachable' => $result?->is_reachable, 'HTTPS' => $usesHttps, 'robots.txt' => data_get($technical, 'robots_txt.exists'), 'sitemap.xml' => data_get($technical, 'sitemap_xml.exists'), 'Mobile viewport' => data_get($technical, 'mobile_viewport.exists')] as $technicalLabel => $ok)<div class="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white p-4"><span class="font-semibold text-slate-900">{{ $technicalLabel }}</span><span class="rounded-full px-3 py-1 text-sm font-bold ring-1 {{ $statusPill((bool) $ok) }}">{{ $ok ? 'Passed' : 'Needs work' }}</span></div>@endforeach</div></section>
 
