@@ -13,7 +13,7 @@ class KeywordTargetingAnalyzer
     ];
 
     private const COMMERCIAL_MODIFIERS = [
-        'cost', 'price', 'pricing', 'package', 'packages', 'booking', 'book', 'family', 'luxury', 'vip', 'service', 'services', 'company', 'agency', 'consultant', 'consulting', 'hire', 'quote', 'demo', '2026',
+        'cost', 'price', 'pricing', 'package', 'packages', 'booking', 'book', 'family', 'luxury', 'vip', 'helicopter', 'service', 'services', 'company', 'agency', 'consultant', 'consulting', 'hire', 'quote', 'demo', '2026',
     ];
 
     private const LOCATIONS = [
@@ -66,6 +66,8 @@ class KeywordTargetingAnalyzer
         $theme = $this->themeAnalysis($primary, $supporting, $services, $locations, $schemaTypes);
         $coverage = $this->contentExpansionOpportunities($primary['phrase'] ?? $primary['keyword'] ?? '', $supporting, $commercial, $questions, $schemaTypes);
         $evidenceSignals = $this->evidenceSignals($sources, $schemaTypes, $content);
+        $goal = $this->pageGoalAnalysis($primary['phrase'] ?? null, $intent, $commercial, $coverage, $evidenceSignals);
+        $impact = $this->businessImpactSummary($goal, $commercial, $coverage, $evidenceSignals);
 
         return [
             'current_search_focus' => $primary ? [
@@ -77,6 +79,8 @@ class KeywordTargetingAnalyzer
                 'evidence_signals' => $evidenceSignals,
                 'summary' => 'This page appears optimized for "'.$primary['phrase'].'" based on page signals.',
             ] : null,
+            'page_goal_analysis' => $goal,
+            'business_impact_summary' => $impact,
             'search_theme_analysis' => $theme,
             'commercial_opportunity_analysis' => $commercial,
             'content_coverage_analysis' => $coverage,
@@ -140,6 +144,7 @@ class KeywordTargetingAnalyzer
             unset($item['score']);
         }
 
+        $items = $this->preferSpecificPhrases($items);
         usort($items, fn ($a, $b) => $b['confidence'] <=> $a['confidence']);
 
         return array_values(array_slice($this->dedupeSimilar($items), 0, 30));
@@ -169,11 +174,11 @@ class KeywordTargetingAnalyzer
     private function sourceWeight(string $source): int
     {
         return match ($source) {
-            'url' => 32,
-            'title' => 30,
-            'h1' => 28,
-            'meta_description' => 22,
-            'faq' => 20,
+            'url' => 34,
+            'title' => 32,
+            'h1' => 30,
+            'meta_description' => 24,
+            'faq' => 22,
             'h2' => 16,
             'h3' => 12,
             'schema' => 10,
@@ -186,20 +191,29 @@ class KeywordTargetingAnalyzer
     {
         $boost = 0;
         $lower = strtolower($phrase);
+        $wordCount = str_word_count($lower);
 
-        if ($this->containsAny($lower, self::SERVICE_MODIFIERS)) {
+        if ($wordCount >= 3) {
+            $boost += 18;
+        }
+
+        if ($wordCount >= 4) {
             $boost += 10;
         }
 
+        if ($this->containsAny($lower, self::SERVICE_MODIFIERS)) {
+            $boost += 12;
+        }
+
         if ($this->containsAny($lower, self::COMMERCIAL_MODIFIERS)) {
-            $boost += 8;
+            $boost += 10;
         }
 
         if ($this->containsAny($lower, self::LOCATIONS)) {
             $boost += 8;
         }
 
-        if (str_contains($lower, 'seo') || str_contains($lower, 'ai') || str_contains($lower, 'marketing')) {
+        if (str_contains($lower, 'seo') || str_contains($lower, 'ai') || str_contains($lower, 'marketing') || str_contains($lower, 'yatra')) {
             $boost += 6;
         }
 
@@ -278,10 +292,13 @@ class KeywordTargetingAnalyzer
         return [
             'present_modifiers' => array_slice($present, 0, 14),
             'missing_modifiers' => array_slice($missing, 0, 14),
+            'coverage_score' => $score,
             'opportunity_score' => $score,
-            'summary' => $score >= 60
-                ? 'The page has clear commercial intent signals in its current copy.'
-                : 'The page could make its commercial intent clearer with stronger service, pricing, package, booking or trust language.',
+            'summary' => $score >= 70
+                ? 'The page has strong commercial intent signals in its current copy.'
+                : ($score >= 45
+                    ? 'The page has moderate commercial intent signals, with room to clarify package, booking or trust language.'
+                    : 'The page could make its commercial intent clearer with stronger service, pricing, package, booking or trust language.'),
         ];
     }
 
@@ -318,7 +335,7 @@ class KeywordTargetingAnalyzer
         if (! $this->containsAny(strtolower(implode(' ', $schemaTypes)), ['faqpage', 'howto', 'article'])) {
             $missing[] = 'Answer-focused structured data';
         }
-        foreach (array_slice((array) $commercial['missing_modifiers'], 0, 5) as $modifier) {
+        foreach (array_slice((array) $commercial['missing_modifiers'], 0, 8) as $modifier) {
             $missing[] = $modifier.' signal';
         }
 
@@ -330,9 +347,102 @@ class KeywordTargetingAnalyzer
 
         return [
             'topics_covered' => array_slice($covered, 0, 12),
-            'potential_topics_missing' => array_slice(array_values(array_unique($missing)), 0, 10),
+            'potential_topics_missing' => array_slice(array_values(array_unique($missing)), 0, 12),
             'content_expansion_opportunities' => array_slice($opportunities, 0, 12),
+            'priority_gaps' => $this->priorityGaps($primary, $missing),
         ];
+    }
+
+    private function pageGoalAnalysis(?string $primary, string $intent, array $commercial, array $coverage, array $evidence): array
+    {
+        $commercialScore = (int) ($commercial['coverage_score'] ?? 0);
+        $aiSignalCount = count(array_filter($evidence));
+
+        return [
+            'primary_goal' => $primary
+                ? ($intent === 'Transactional' || $intent === 'Commercial Investigation'
+                    ? 'Generate enquiries for '.$primary.'.'
+                    : 'Educate visitors about '.$primary.'.')
+                : 'Clarify the page topic and intended next action.',
+            'search_intent' => $intent,
+            'commercial_strength' => $this->band($commercialScore),
+            'lead_generation_readiness' => $this->band((int) round(($commercialScore + min(100, $aiSignalCount * 12)) / 2)),
+            'ai_visibility' => $this->band((int) round((min(100, $aiSignalCount * 12) + count($coverage['topics_covered'] ?? []) * 6) / 2)),
+        ];
+    }
+
+    private function businessImpactSummary(array $goal, array $commercial, array $coverage, array $evidence): array
+    {
+        $commercialScore = (int) ($commercial['coverage_score'] ?? 0);
+        $coveredCount = count($coverage['topics_covered'] ?? []);
+        $gapCount = count($coverage['potential_topics_missing'] ?? []);
+        $aiSignalCount = count(array_filter($evidence));
+
+        return [
+            'commercial_intent' => $this->band($commercialScore),
+            'conversion_potential' => $goal['lead_generation_readiness'] ?? 'Moderate',
+            'content_depth' => $this->band((int) round(($coveredCount * 10) - ($gapCount * 3) + 45)),
+            'ai_discoverability' => $goal['ai_visibility'] ?? 'Moderate',
+            'biggest_risk' => $aiSignalCount < 6
+                ? 'Missing trust, FAQ or citation signals may reduce AI visibility.'
+                : 'The page may still need more citeable proof and deeper supporting content.',
+            'biggest_opportunity' => $gapCount > 0
+                ? 'Expand package-specific content, FAQs and proof points around the current search focus.'
+                : 'Strengthen conversion prompts, trust proof and answer-focused structure.',
+        ];
+    }
+
+    private function priorityGaps(string $primary, array $missing): array
+    {
+        $lowerPrimary = strtolower($primary);
+        $highSeeds = ['Family', 'Luxury', 'Vip', 'Helicopter', 'Booking', 'Package'];
+        $mediumSeeds = ['Cost', 'Price', 'Pricing', 'Checklist', 'Itinerary', 'Best Time', 'Guide'];
+        $high = [];
+        $medium = [];
+        $low = [];
+
+        foreach ($missing as $gap) {
+            $gap = str_replace(' signal', '', $gap);
+            if ($this->containsAny($gap, $highSeeds)) {
+                $high[] = trim($gap.' '.($this->containsAny($lowerPrimary, ['package', 'packages']) ? 'Packages' : 'Content'));
+            } elseif ($this->containsAny($gap, $mediumSeeds)) {
+                $medium[] = trim($gap.' Content');
+            } else {
+                $low[] = trim($gap.' Guide');
+            }
+        }
+
+        return [
+            'high' => array_values(array_unique(array_slice($high, 0, 6))),
+            'medium' => array_values(array_unique(array_slice(array_merge($medium, ['Travel Checklist', 'Best Time To Visit', 'Itinerary Guide']), 0, 6))),
+            'low' => array_values(array_unique(array_slice(array_merge($low, ['Weather Guide', 'Packing Guide']), 0, 6))),
+        ];
+    }
+
+    private function preferSpecificPhrases(array $items): array
+    {
+        foreach ($items as &$item) {
+            $phrase = strtolower((string) ($item['phrase'] ?? ''));
+            $wordCount = str_word_count($phrase);
+
+            if ($wordCount <= 2) {
+                foreach ($items as $candidate) {
+                    $candidatePhrase = strtolower((string) ($candidate['phrase'] ?? ''));
+                    $candidateWords = str_word_count($candidatePhrase);
+
+                    if ($candidateWords >= 3 && str_contains($candidatePhrase, $phrase)) {
+                        $item['confidence'] = max(35, $item['confidence'] - 18);
+                        break;
+                    }
+                }
+            }
+
+            if ($wordCount >= 3) {
+                $item['confidence'] = min(96, $item['confidence'] + 10);
+            }
+        }
+
+        return $items;
     }
 
     private function detectIntent(string $text): string
@@ -396,6 +506,11 @@ class KeywordTargetingAnalyzer
         return trim((string) preg_replace('/\s+/', ' ', str_replace(['/', '-', '_'], ' ', $path)));
     }
 
+    private function band(int $score): string
+    {
+        return $score >= 70 ? 'High' : ($score >= 45 ? 'Moderate' : 'Low');
+    }
+
     private function dedupeSimilar(array $items): array
     {
         $seen = [];
@@ -416,6 +531,8 @@ class KeywordTargetingAnalyzer
 
     private function containsAny(string $haystack, array $needles): bool
     {
+        $haystack = strtolower($haystack);
+
         foreach ($needles as $needle) {
             if ($needle !== '' && str_contains($haystack, strtolower((string) $needle))) {
                 return true;
