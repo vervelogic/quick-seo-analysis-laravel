@@ -6,6 +6,50 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ?? config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+
+            html,
+            body {
+                background: #ffffff !important;
+                color: #020617 !important;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+
+            .no-print,
+            body > header,
+            body > footer {
+                display: none !important;
+            }
+
+            main {
+                display: block !important;
+            }
+
+            section,
+            article,
+            aside,
+            table,
+            .rounded-xl,
+            .rounded-lg {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .lg\:sticky {
+                position: static !important;
+            }
+
+            a[href]::after {
+                content: "" !important;
+            }
+        }
+    </style>
 </head>
 <body class="bg-white text-slate-950 antialiased">
     <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
@@ -25,6 +69,12 @@
     <main>
         {{ $slot }}
     </main>
+
+    @if (request()->routeIs('report.show'))
+        <button type="button" onclick="window.print()" class="no-print fixed bottom-5 right-5 z-50 inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-blue-950/20 ring-1 ring-blue-500 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200">
+            Download PDF
+        </button>
+    @endif
 
     <footer class="border-t border-slate-200 bg-slate-50">
         <div class="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
