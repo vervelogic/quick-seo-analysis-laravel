@@ -15,9 +15,12 @@
     $focusSupport = (int) (data_get($focus, 'content_support_score') ?: data_get($legacyPrimary, 'content_support_score', data_get($keywordTargeting, 'content_support_score', 0)));
     $focusEvidence = (array) (data_get($focus, 'evidence_signals') ?: []);
 
+    $pageGoal = (array) data_get($keywordTargeting, 'page_goal_analysis', []);
+    $businessImpact = (array) data_get($keywordTargeting, 'business_impact_summary', []);
     $theme = (array) data_get($keywordTargeting, 'search_theme_analysis', []);
     $commercial = (array) data_get($keywordTargeting, 'commercial_opportunity_analysis', []);
     $coverageAnalysis = (array) data_get($keywordTargeting, 'content_coverage_analysis', []);
+    $priorityGaps = (array) data_get($coverageAnalysis, 'priority_gaps', []);
 
     $supportingTopics = (array) (data_get($theme, 'supporting_topics') ?: collect((array) data_get($keywordTargeting, 'supporting_keywords', []))->pluck('keyword')->filter()->take(8)->values()->all());
     $relatedEntities = (array) (data_get($theme, 'related_entities') ?: array_values(array_unique(array_merge(
@@ -33,6 +36,9 @@
     $aeoScore = (int) data_get($aeo, 'score', data_get($scores, 'AEO', 0));
     $citationScore = (int) data_get($citation, 'score', data_get($scores, 'Citation Readiness', 0));
     $coveragePercent = (int) data_get($coverage, 'coverage_percent', $focusSupport);
+    $commercialCoverageScore = (int) data_get($commercial, 'coverage_score', data_get($commercial, 'opportunity_score', 0));
+    $labelPill = fn ($value) => $value === 'High' ? 'bg-teal-50 text-teal-800 ring-teal-100' : ($value === 'Moderate' ? 'bg-amber-50 text-amber-800 ring-amber-100' : 'bg-red-50 text-red-700 ring-red-100');
+    $chance = fn ($score) => $score >= 70 ? 'High' : ($score >= 45 ? 'Medium' : 'Low');
 
     $engineCards = [
         'ChatGPT Readiness' => [
@@ -64,14 +70,69 @@
 @endphp
 
 <section class="{{ $sectionCard }}">
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-blue-700">What This Page Appears Designed To Do</p>
+        <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">Business goal from current page signals</h2>
+        <p class="mt-2 text-sm leading-6 text-slate-600">This is inferred from the page URL, title, headings, copy, schema and commercial language. No external keyword, ranking or volume data is used.</p>
+    </div>
+    <div class="mt-6 grid gap-4 lg:grid-cols-5">
+        <div class="rounded-xl border border-blue-100 bg-blue-50 p-5 lg:col-span-2">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-blue-700">Primary Goal</p>
+            <p class="mt-3 text-xl font-black leading-8 text-slate-950">{{ data_get($pageGoal, 'primary_goal', $focusPhrase ? 'Clarify interest around '.$focusPhrase.'.' : 'Clarify the page topic and intended next action.') }}</p>
+        </div>
+        @foreach ([
+            'Search Intent' => data_get($pageGoal, 'search_intent', $focusIntent),
+            'Commercial Strength' => data_get($pageGoal, 'commercial_strength', 'Moderate'),
+            'Lead Generation Readiness' => data_get($pageGoal, 'lead_generation_readiness', 'Moderate'),
+            'AI Visibility' => data_get($pageGoal, 'ai_visibility', 'Moderate'),
+        ] as $goalLabel => $goalValue)
+            <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{{ $goalLabel }}</p>
+                <p class="mt-3 text-xl font-black text-slate-950">{{ $goalValue }}</p>
+            </div>
+        @endforeach
+    </div>
+</section>
+
+<section class="{{ $sectionCard }}">
+    <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">Business Impact Summary</p>
+        <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">What this means for the business</h2>
+    </div>
+    <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        @foreach ([
+            'Commercial Intent' => data_get($businessImpact, 'commercial_intent', data_get($pageGoal, 'commercial_strength', 'Moderate')),
+            'Conversion Potential' => data_get($businessImpact, 'conversion_potential', data_get($pageGoal, 'lead_generation_readiness', 'Moderate')),
+            'Content Depth' => data_get($businessImpact, 'content_depth', 'Moderate'),
+            'AI Discoverability' => data_get($businessImpact, 'ai_discoverability', data_get($pageGoal, 'ai_visibility', 'Moderate')),
+        ] as $impactLabel => $impactValue)
+            <div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+                <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{{ $impactLabel }}</p>
+                <span class="mt-3 inline-flex rounded-full px-3 py-1.5 text-sm font-black ring-1 {{ $labelPill($impactValue) }}">{{ $impactValue }}</span>
+            </div>
+        @endforeach
+    </div>
+    <div class="mt-5 grid gap-4 lg:grid-cols-2">
+        <div class="rounded-lg border border-red-100 bg-red-50 p-5">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-red-700">Biggest Risk</p>
+            <p class="mt-2 text-sm font-semibold leading-6 text-red-950">{{ data_get($businessImpact, 'biggest_risk', 'Missing trust or citation signals may reduce AI visibility.') }}</p>
+        </div>
+        <div class="rounded-lg border border-teal-100 bg-teal-50 p-5">
+            <p class="text-xs font-bold uppercase tracking-[0.14em] text-teal-700">Biggest Opportunity</p>
+            <p class="mt-2 text-sm font-semibold leading-6 text-teal-950">{{ data_get($businessImpact, 'biggest_opportunity', 'Expand package-specific content, FAQs and proof points around the current search focus.') }}</p>
+        </div>
+    </div>
+</section>
+
+<section class="{{ $sectionCard }}">
     <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
             <p class="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Current Search Focus Intelligence</p>
             <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">What this page appears optimized for</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Likely search focus based on page signals from the URL, title, meta description, headings, FAQ, schema and body content. No external keyword API is used.</p>
+            <p class="mt-2 text-sm leading-6 text-slate-600">Likely search focus based on page signals from the URL, title, H1, meta description, FAQ, schema and body content.</p>
         </div>
         @if ($focusPhrase)
-            <span class="w-fit rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 ring-1 ring-emerald-100">{{ $focusConfidence }}% confidence</span>
+            <span class="w-fit rounded-full bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-800 ring-1 ring-emerald-100">Confidence: {{ $focusConfidence }}%</span>
         @endif
     </div>
 
@@ -94,22 +155,22 @@
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white p-5">
-                <h3 class="font-black text-slate-950">Evidence Signals</h3>
-                <p class="mt-2 text-sm leading-6 text-slate-600">These are the page elements QSA used to infer the current search focus.</p>
+                <h3 class="font-black text-slate-950">Evidence</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Signals used to infer the current search focus.</p>
                 <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     @foreach ([
                         'URL' => data_get($focusEvidence, 'url'),
                         'Title' => data_get($focusEvidence, 'title'),
-                        'Meta Description' => data_get($focusEvidence, 'meta_description'),
                         'H1' => data_get($focusEvidence, 'h1'),
-                        'H2' => data_get($focusEvidence, 'h2'),
+                        'Meta Description' => data_get($focusEvidence, 'meta_description'),
                         'FAQ' => data_get($focusEvidence, 'faq'),
                         'Schema' => data_get($focusEvidence, 'schema'),
                         'Body Content' => data_get($focusEvidence, 'body_content'),
+                        'H2' => data_get($focusEvidence, 'h2'),
                     ] as $signal => $present)
                         <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 p-3 ring-1 ring-slate-200">
                             <span class="text-sm font-semibold text-slate-800">{{ $signal }}</span>
-                            <span class="rounded-full px-2.5 py-1 text-xs font-black ring-1 {{ $present ? 'bg-teal-50 text-teal-800 ring-teal-100' : 'bg-amber-50 text-amber-800 ring-amber-100' }}">{{ $present ? 'Present' : 'Weak' }}</span>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-black ring-1 {{ $present ? 'bg-teal-50 text-teal-800 ring-teal-100' : 'bg-amber-50 text-amber-800 ring-amber-100' }}">{{ $present ? '✓' : 'Weak' }}</span>
                         </div>
                     @endforeach
                 </div>
@@ -160,14 +221,14 @@
     <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
         <div>
             <p class="text-sm font-semibold uppercase tracking-[0.18em] text-amber-700">Commercial Opportunity Analysis</p>
-            <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">How clearly the page signals buyer intent</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">This is content and commercial signal analysis, not keyword research.</p>
+            <h2 class="mt-1 text-2xl font-black tracking-tight text-slate-950">Commercial Modifier Coverage</h2>
+            <p class="mt-2 text-sm leading-6 text-slate-600">This measures commercial language already present on the page. It is not keyword research.</p>
         </div>
-        <span class="w-fit rounded-full px-4 py-2 text-sm font-black ring-1 {{ $softPill((int) data_get($commercial, 'opportunity_score', 0)) }}">{{ (int) data_get($commercial, 'opportunity_score', 0) }}/100</span>
+        <span class="w-fit rounded-full px-4 py-2 text-sm font-black ring-1 {{ $softPill($commercialCoverageScore) }}">{{ $commercialCoverageScore }}%</span>
     </div>
     <div class="mt-6 grid gap-5 lg:grid-cols-2">
         <div class="rounded-lg border border-slate-200 bg-white p-5">
-            <h3 class="font-black text-slate-950">Present Modifiers</h3>
+            <h3 class="font-black text-slate-950">Found</h3>
             <div class="mt-4 flex flex-wrap gap-2">
                 @forelse ((array) data_get($commercial, 'present_modifiers', []) as $modifier)
                     <span class="rounded-full bg-teal-50 px-3 py-1.5 text-sm font-bold text-teal-800 ring-1 ring-teal-100">{{ $modifier }}</span>
@@ -177,7 +238,7 @@
             </div>
         </div>
         <div class="rounded-lg border border-slate-200 bg-white p-5">
-            <h3 class="font-black text-slate-950">Missing Modifiers</h3>
+            <h3 class="font-black text-slate-950">Missing</h3>
             <div class="mt-4 flex flex-wrap gap-2">
                 @forelse ((array) data_get($commercial, 'missing_modifiers', []) as $modifier)
                     <span class="rounded-full bg-amber-50 px-3 py-1.5 text-sm font-bold text-amber-800 ring-1 ring-amber-100">{{ $modifier }}</span>
@@ -213,13 +274,24 @@
                 </div>
             </div>
             <div class="rounded-lg border border-slate-200 bg-white p-5">
-                <h3 class="font-black text-slate-950">Potential Topics Missing</h3>
-                <div class="mt-4 flex flex-wrap gap-2">
-                    @forelse ($topicsMissing as $topic)
-                        <span class="rounded-full bg-red-50 px-3 py-1.5 text-sm font-bold text-red-700 ring-1 ring-red-100">{{ $topic }}</span>
-                    @empty
-                        <span class="text-sm text-slate-500">No major missing topics detected yet.</span>
-                    @endforelse
+                <h3 class="font-black text-slate-950">Content Gap Priority</h3>
+                <div class="mt-4 grid gap-3">
+                    @foreach ([
+                        'High Priority' => ['items' => data_get($priorityGaps, 'high', []), 'class' => 'bg-red-50 text-red-700 ring-red-100'],
+                        'Medium Priority' => ['items' => data_get($priorityGaps, 'medium', []), 'class' => 'bg-amber-50 text-amber-800 ring-amber-100'],
+                        'Low Priority' => ['items' => data_get($priorityGaps, 'low', []), 'class' => 'bg-slate-50 text-slate-700 ring-slate-200'],
+                    ] as $priorityLabel => $group)
+                        <div class="rounded-lg bg-white p-3 ring-1 ring-slate-200">
+                            <p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{{ $priorityLabel }}</p>
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @forelse ((array) $group['items'] as $gap)
+                                    <span class="rounded-full px-3 py-1.5 text-sm font-bold ring-1 {{ $group['class'] }}">{{ $gap }}</span>
+                                @empty
+                                    <span class="text-sm text-slate-500">No clear gaps in this priority.</span>
+                                @endforelse
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
             </div>
             <div class="rounded-lg border border-slate-200 bg-white p-5">
@@ -244,10 +316,14 @@
     </div>
     <div class="mt-6 grid gap-4 lg:grid-cols-2">
         @foreach ($engineCards as $engine => $card)
+            @php $engineChance = $chance((int) $card['score']); @endphp
             <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div class="flex items-start justify-between gap-4">
+                <div class="flex flex-wrap items-start justify-between gap-3">
                     <h3 class="text-lg font-black text-slate-950">{{ $engine }}</h3>
-                    <span class="rounded-full px-3 py-1 text-sm font-black ring-1 {{ $softPill((int) $card['score']) }}">{{ (int) $card['score'] }}/100</span>
+                    <div class="flex flex-wrap gap-2">
+                        <span class="rounded-full px-3 py-1 text-sm font-black ring-1 {{ $softPill((int) $card['score']) }}">{{ (int) $card['score'] }}/100</span>
+                        <span class="rounded-full px-3 py-1 text-sm font-black ring-1 {{ $labelPill($engineChance === 'Medium' ? 'Moderate' : $engineChance) }}">Citation chance: {{ $engineChance }}</span>
+                    </div>
                 </div>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>
