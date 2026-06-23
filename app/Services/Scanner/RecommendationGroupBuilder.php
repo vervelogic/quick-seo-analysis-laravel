@@ -7,19 +7,30 @@ class RecommendationGroupBuilder
     public function build(array $recommendations, array $data, array $pageType, array $scanQuality): array
     {
         if (($scanQuality['status'] ?? null) === 'retrieval_issue_detected') {
+            $fixes = [
+                'Check whether bot protection, CDN rules or server firewalls block server-side requests.',
+                'Allow standard crawler-like requests or provide crawlable HTML for the page.',
+                'Re-run the scan after fetch access is confirmed.',
+            ];
+
             return [[
                 'title' => 'Content Retrieval Issue Detected',
+                'category' => 'Scan Quality',
+                'issue' => 'Content Retrieval Issue Detected',
                 'group_score' => 0,
                 'business_impact' => 'High',
                 'fix_difficulty' => 'Medium',
                 'priority' => 'Critical',
+                'impact' => 'high',
+                'difficulty' => 'medium',
+                'estimated_gain' => 0,
                 'summary' => 'QSA could not retrieve enough readable page content to produce a normal visibility audit.',
+                'why_it_matters' => 'QSA could not retrieve enough readable page content to produce a normal visibility audit.',
+                'recommendation' => 'Resolve the retrieval issue before relying on scoring or recommendations.',
+                'how_to_fix' => implode(' ', $fixes),
                 'top_missing_signals' => ['Readable page HTML', 'Title/meta/body confirmation', 'Reliable content extraction'],
-                'fixes' => [
-                    'Check whether bot protection, CDN rules or server firewalls block server-side requests.',
-                    'Allow standard crawler-like requests or provide crawlable HTML for the page.',
-                    'Re-run the scan after fetch access is confirmed.',
-                ],
+                'fixes' => $fixes,
+                'details' => [],
             ]];
         }
 
@@ -62,15 +73,27 @@ class RecommendationGroupBuilder
                 continue;
             }
 
+            $difficulty = $this->difficultyFor($relevant);
+            $summary = $this->summaryFor($title, $type);
+            $fixes = array_values(array_slice(array_unique($fixes), 0, 4));
+
             $grouped[] = [
                 'title' => $title,
+                'category' => $title,
+                'issue' => $title,
                 'group_score' => $config['score'],
                 'business_impact' => $config['impact'],
-                'fix_difficulty' => $this->difficultyFor($relevant),
+                'fix_difficulty' => $difficulty,
                 'priority' => $config['priority'],
-                'summary' => $this->summaryFor($title, $type),
+                'impact' => strtolower($config['impact']),
+                'difficulty' => strtolower($difficulty),
+                'estimated_gain' => $this->estimatedGain($config['score'], $config['priority']),
+                'summary' => $summary,
+                'why_it_matters' => $summary,
+                'recommendation' => 'Focus on the highest-impact missing signals in this group before expanding lower-priority checks.',
+                'how_to_fix' => implode(' ', array_slice($fixes, 0, 2)),
                 'top_missing_signals' => array_values(array_slice(array_unique($missingSignals), 0, 5)),
-                'fixes' => array_values(array_slice(array_unique($fixes), 0, 4)),
+                'fixes' => $fixes,
                 'details' => array_values(array_slice($relevant, 0, 6)),
             ];
         }
@@ -119,7 +142,7 @@ class RecommendationGroupBuilder
 
     private function isRelevantToType(array $item, string $pageType): bool
     {
-        $text = strtolower(implode(' ', array_filter($item)));
+        $text = strtolower(implode(' ', array_map(fn ($value) => is_array($value) ? implode(' ', $value) : (string) $value, array_filter($item))));
 
         if ($pageType === 'Ecommerce') {
             return ! str_contains($text, 'service pages missing')
@@ -237,6 +260,13 @@ class RecommendationGroupBuilder
         }
 
         return in_array('medium', $difficulties, true) ? 'Medium' : 'Low';
+    }
+
+    private function estimatedGain(int $score, string $priority): int
+    {
+        $base = $priority === 'Critical' ? 14 : 9;
+
+        return max(4, min(18, $base + (int) round((100 - $score) / 12)));
     }
 
     private function scoreAuthority(array $data): int
