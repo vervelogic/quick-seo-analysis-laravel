@@ -18,6 +18,8 @@ class Scan extends Model
         'uuid',
         'url',
         'normalized_url',
+        'scan_mode',
+        'target_keywords',
         'status',
         'error_message',
         'started_at',
@@ -25,6 +27,7 @@ class Scan extends Model
     ];
 
     protected $casts = [
+        'target_keywords' => 'array',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
