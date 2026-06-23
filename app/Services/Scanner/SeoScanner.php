@@ -15,6 +15,7 @@ class SeoScanner
         private readonly TopicIntelligenceAnalyzer $topicIntelligence,
         private readonly KeywordTargetingAnalyzer $keywordTargeting,
         private readonly KeywordAlignmentAnalyzer $keywordAlignment,
+        private readonly ScanQualityAnalyzer $qualityAnalyzer,
     ) {
     }
 
@@ -49,6 +50,14 @@ class SeoScanner
             }
         }
 
+        $scanQuality = $this->qualityAnalyzer->analyze($fetch, $parsed, $parseError);
+        $fetchDiagnostics = $this->fetchDiagnostics($scan, $fetch, $effectiveUrl, $parsed, $scanQuality);
+
+        if ($this->shouldLogDiagnostics($effectiveUrl, $scanQuality)) {
+            Log::info('QSA scan fetch diagnostics', $fetchDiagnostics);
+        }
+
+        $retrievalIssue = $scanQuality['status'] === 'retrieval_issue_detected';
         $security = $this->securityHeaders($fetch->headers);
         $performance = $this->performanceHeaders($fetch->headers, $fetch->responseTimeMs, $fetch->pageSizeBytes);
         $technical = [
@@ -71,7 +80,7 @@ class SeoScanner
 
         $data = array_merge($parsed, [
             'http_status' => $fetch->status,
-            'is_reachable' => $fetch->reachable,
+            'is_reachable' => $fetch->reachable && ! $retrievalIssue,
             'uses_https' => parse_url($effectiveUrl, PHP_URL_SCHEME) === 'https',
             'page_size_bytes' => $fetch->pageSizeBytes,
             'response_time_ms' => $fetch->responseTimeMs,
@@ -99,10 +108,26 @@ class SeoScanner
             $topicIntelligence['opportunities']
         ));
 
+        if ($retrievalIssue) {
+            $scoreBreakdown = array_map(fn () => 0, $scoreBreakdown);
+            $scoreBreakdown['overall_visibility_score'] = 0;
+            $scoreBreakdown['overall_score'] = 0;
+            $recommendations = [[
+                'category' => 'Scan Quality',
+                'issue' => 'Content Retrieval Issue Detected',
+                'impact' => 'high',
+                'difficulty' => 'medium',
+                'estimated_gain' => 0,
+                'recommendation' => 'Review fetch diagnostics before using this audit for SEO or AI visibility decisions.',
+                'why_it_matters' => 'Critical page signals such as title, meta description or readable body content were missing from the server-side response.',
+                'how_to_fix' => 'Check whether the website blocks server-side requests, uses bot protection, serves a challenge page, times out, or returns different HTML to non-browser clients.',
+            ]];
+        }
+
         $scan->result()->updateOrCreate(
             ['scan_id' => $scan->id],
             array_merge($data, [
-                'score' => $scoreBreakdown['overall_visibility_score'],
+                'score' => $retrievalIssue ? 0 : $scoreBreakdown['overall_visibility_score'],
                 'checks' => $score['checks'],
                 'recommendations' => $recommendations,
                 'technical_data' => $technical,
@@ -146,13 +171,19 @@ class SeoScanner
                     'error' => $fetch->error,
                     'parse_error' => $parseError,
                     'headers' => $fetch->headers,
+                    'scan_quality' => $scanQuality,
+                    'fetch_diagnostics' => $fetchDiagnostics,
                 ],
             ])
         );
 
         $scan->update([
-            'status' => $fetch->reachable ? 'completed' : 'failed',
-            'error_message' => $fetch->reachable ? null : ($fetch->error ?: 'The page was not reachable.'),
+            'status' => ($fetch->reachable && ! $retrievalIssue) ? 'completed' : 'failed',
+            'error_message' => match (true) {
+                $retrievalIssue => 'Content retrieval issue detected. QSA could not extract reliable page content for scoring.',
+                ! $fetch->reachable => $fetch->error ?: 'The page was not reachable.',
+                default => null,
+            },
             'completed_at' => now(),
         ]);
 
@@ -192,6 +223,35 @@ class SeoScanner
             'headings' => [],
             'heading_levels' => ['h1' => [], 'h2' => [], 'h3' => []],
         ];
+    }
+
+    private function fetchDiagnostics(Scan $scan, PageFetchResult $fetch, string $effectiveUrl, array $parsed, array $scanQuality): array
+    {
+        $html = (string) ($fetch->html ?? '');
+
+        return [
+            'scan_id' => $scan->id,
+            'original_url' => $scan->url,
+            'scan_target_url' => $scan->normalized_url,
+            'final_url' => $effectiveUrl,
+            'http_status' => $fetch->status,
+            'redirect_chain' => $fetch->redirectChain,
+            'content_type' => $this->headerValue($fetch->headers, 'Content-Type'),
+            'response_size_bytes' => $fetch->pageSizeBytes,
+            'first_2048_html' => mb_substr($html, 0, 2048),
+            'extracted_title' => $parsed['title'] ?? '',
+            'extracted_meta_description' => $parsed['meta_description'] ?? null,
+            'extracted_h1_count' => (int) ($parsed['h1_count'] ?? 0),
+            'extracted_body_text_length' => mb_strlen((string) data_get($parsed, 'content.visible_text', '')),
+            'scan_quality' => $scanQuality,
+        ];
+    }
+
+    private function shouldLogDiagnostics(string $effectiveUrl, array $scanQuality): bool
+    {
+        $host = strtolower(parse_url($effectiveUrl, PHP_URL_HOST) ?: '');
+
+        return str_contains($host, 'truffleindia.com') || $scanQuality['status'] !== 'full_content_retrieved';
     }
 
     private function domainAssetUrl(string $url, string $path): string
