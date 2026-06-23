@@ -28,6 +28,32 @@ function addWebsitePreviewScreenshotNote() {
     browserPreview.appendChild(note);
 }
 
+function polishReportExperience() {
+    if (! /^\/report\/[^/]+$/.test(window.location.pathname)) {
+        return;
+    }
+
+    Array.from(document.querySelectorAll('p')).forEach((element) => {
+        if (element.textContent?.trim() === 'Current Search Focus Intelligence') {
+            element.textContent = 'Current Search Focus';
+        }
+    });
+
+    const pdfLink = Array.from(document.querySelectorAll('a, button')).find((element) => {
+        return element.textContent?.trim().toLowerCase() === 'download pdf';
+    });
+
+    const scoreCard = Array.from(document.querySelectorAll('p')).find((element) => {
+        return element.textContent?.trim().toLowerCase() === 'overall visibility';
+    })?.closest('div');
+
+    if (pdfLink && scoreCard && ! scoreCard.contains(pdfLink)) {
+        pdfLink.classList.remove('fixed', 'sticky', 'bottom-4', 'right-4', 'z-50');
+        pdfLink.classList.add('mt-5', 'inline-flex', 'min-h-11', 'items-center', 'justify-center', 'rounded-lg', 'bg-slate-950', 'px-4', 'text-sm', 'font-black', 'text-white');
+        scoreCard.appendChild(pdfLink);
+    }
+}
+
 function loadKeywordFocusReportSection() {
     if (! /^\/report\/[^/]+$/.test(window.location.pathname) || document.querySelector('[data-keyword-focus-audit]')) {
         return;
@@ -80,5 +106,6 @@ function onReady(callback) {
 
 onReady(() => {
     addWebsitePreviewScreenshotNote();
+    polishReportExperience();
     loadKeywordFocusReportSection();
 });
