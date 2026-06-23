@@ -28,8 +28,57 @@ function addWebsitePreviewScreenshotNote() {
     browserPreview.appendChild(note);
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addWebsitePreviewScreenshotNote);
-} else {
-    addWebsitePreviewScreenshotNote();
+function loadKeywordFocusReportSection() {
+    if (! /^\/report\/[^/]+$/.test(window.location.pathname) || document.querySelector('[data-keyword-focus-audit]')) {
+        return;
+    }
+
+    fetch(`${window.location.pathname}/keyword-focus`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        },
+    })
+        .then((response) => (response.status === 204 ? '' : response.text()))
+        .then((html) => {
+            if (! html.trim() || document.querySelector('[data-keyword-focus-audit]')) {
+                return;
+            }
+
+            const template = document.createElement('template');
+            template.innerHTML = html.trim();
+            const section = template.content.firstElementChild;
+
+            if (! section) {
+                return;
+            }
+
+            const executiveLabel = Array.from(document.querySelectorAll('p')).find((element) => {
+                return element.textContent?.trim().toLowerCase() === 'executive summary';
+            });
+            const executiveSection = executiveLabel?.closest('section');
+
+            if (executiveSection) {
+                executiveSection.insertAdjacentElement('afterend', section);
+                return;
+            }
+
+            document.querySelector('main')?.appendChild(section);
+        })
+        .catch(() => {
+            // Keep the existing report fully usable if the optional section cannot load.
+        });
 }
+
+function onReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback);
+        return;
+    }
+
+    callback();
+}
+
+onReady(() => {
+    addWebsitePreviewScreenshotNote();
+    loadKeywordFocusReportSection();
+});
