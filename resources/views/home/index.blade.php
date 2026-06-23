@@ -65,7 +65,7 @@
             <div class="mx-auto max-w-3xl text-center">
                 <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Audit paths</p>
                 <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Choose Your Audit Path</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Coming soon: Keyword Focus Audit for businesses already targeting specific keywords through SEO campaigns.</p>
+                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Beta: Keyword Focus Audit is now available for businesses already targeting specific keywords through SEO campaigns.</p>
             </div>
 
             <div class="mt-10 grid gap-6 lg:grid-cols-2">
@@ -89,14 +89,14 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h3 class="text-2xl font-black tracking-tight">Keyword Focus Audit</h3>
-                            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Designed for businesses already investing in SEO. Validate whether your page aligns with the keywords you are targeting.</p>
+                            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Already doing SEO? Check whether your page actually supports the keywords you are targeting.</p>
                         </div>
-                        <span class="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Coming Soon</span>
+                        <span class="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Beta</span>
                     </div>
                     <div class="mt-7 rounded-xl border border-white/10 bg-white/[0.06] p-5">
-                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-200">Future capabilities</p>
+                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-200">Keyword Focus checks</p>
                         <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            @foreach (['Keyword Alignment Analysis', 'Search Intent Matching', 'Content Coverage Analysis', 'Commercial Intent Validation', 'SEO Campaign Verification'] as $capability)
+                            @foreach (['Keyword Alignment', 'Search Intent Match', 'Content Coverage', 'On-Page Fixes'] as $capability)
                                 <div class="flex items-center gap-3 rounded-lg bg-white/5 p-3 text-sm font-bold text-slate-100 ring-1 ring-white/10">
                                     <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal-300/15 text-xs font-black text-teal-200">✓</span>
                                     <span>{{ $capability }}</span>
@@ -104,6 +104,7 @@
                             @endforeach
                         </div>
                     </div>
+                    <a href="{{ route('keyword-focus.create') }}" class="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-6 font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-white/20 sm:w-auto">Start Keyword Focus Audit</a>
                 </article>
             </div>
         </div>
