@@ -69,15 +69,58 @@
     </section>
 
     <section class="bg-white py-16 sm:py-20">
-        <div class="mx-auto max-w-5xl px-5 sm:px-6 lg:px-8">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
-                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">What this audit does</p>
-                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Alignment, not ranking tracking.</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">This audit checks whether your page clearly supports your selected keywords in important on-page areas. It does not claim search volume, keyword difficulty, ranking position or traffic.</p>
+        <div class="mx-auto grid max-w-7xl gap-6 px-5 sm:px-6 lg:grid-cols-2 lg:px-8">
+            <article class="rounded-xl border border-blue-100 bg-blue-50 p-6 sm:p-8">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">What You Will Learn</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">A practical keyword alignment readout.</h2>
                 <div class="mt-6 grid gap-3 sm:grid-cols-2">
-                    @foreach (['URL, title and meta signals', 'H1, H2 and H3 support', 'Body copy and FAQ coverage', 'Schema and internal link signals'] as $item)
-                        <div class="rounded-lg bg-white p-4 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200">{{ $item }}</div>
+                    @foreach (['Which keywords are strongly supported', 'Which keywords have weak support', 'Search intent alignment', 'Content coverage gaps', 'Missing commercial modifiers', 'Priority SEO improvements'] as $item)
+                        <div class="flex items-center gap-3 rounded-lg bg-white p-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-blue-100">
+                            <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal-50 text-xs font-black text-teal-700">✓</span>
+                            <span>{{ $item }}</span>
+                        </div>
                     @endforeach
+                </div>
+            </article>
+
+            <article class="rounded-xl border border-slate-200 bg-slate-50 p-6 sm:p-8">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-slate-700">Who This Audit Is For</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Best for SEO-active pages.</h2>
+                <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                    @foreach (['Businesses already investing in SEO', 'Agency-managed campaigns', 'Service pages', 'Landing pages', 'Pages not performing despite SEO work', 'Businesses targeting specific phrases'] as $item)
+                        <div class="rounded-lg bg-white p-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200">{{ $item }}</div>
+                    @endforeach
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="bg-slate-50 py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div class="grid gap-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">What this audit does</p>
+                    <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Alignment, not ranking tracking.</h2>
+                    <p class="mt-4 text-base leading-7 text-slate-600">This audit checks whether your page clearly supports your selected keywords in important on-page areas. It does not claim search volume, keyword difficulty, ranking position or traffic.</p>
+                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                        @foreach (['URL, title and meta signals', 'H1, H2 and H3 support', 'Body copy and FAQ coverage', 'Schema and internal link signals'] as $item)
+                            <div class="rounded-lg bg-slate-50 p-4 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-slate-200">{{ $item }}</div>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">Sample Alignment Preview</p>
+                    <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">Before you run the audit</h2>
+                    <p class="mt-4 text-base leading-7 text-slate-600">The report summarizes alignment first, then provides a detailed table below for deeper review.</p>
+                    <div class="mt-6 overflow-hidden rounded-xl border border-slate-200">
+                        @foreach ([['SEO Services', 'Strong', 'bg-teal-50 text-teal-800 ring-teal-100'], ['Local SEO Company', 'Medium', 'bg-amber-50 text-amber-800 ring-amber-100'], ['AI SEO Audit', 'Weak', 'bg-red-50 text-red-700 ring-red-100']] as [$keyword, $status, $class])
+                            <div class="flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4 last:border-b-0">
+                                <span class="font-black text-slate-950">{{ $keyword }}</span>
+                                <span class="rounded-full px-3 py-1 text-sm font-black ring-1 {{ $class }}">{{ $status }}</span>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
         </div>
