@@ -15,6 +15,7 @@ class ScanController
         $scan = Scan::query()->create([
             'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
+            'scan_mode' => 'current_visibility',
             'status' => 'pending',
         ]);
 
