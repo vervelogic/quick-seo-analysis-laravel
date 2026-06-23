@@ -14,6 +14,7 @@ class SeoScanner
         private readonly VisibilitySignalAnalyzer $visibility,
         private readonly TopicIntelligenceAnalyzer $topicIntelligence,
         private readonly KeywordTargetingAnalyzer $keywordTargeting,
+        private readonly KeywordAlignmentAnalyzer $keywordAlignment,
     ) {
     }
 
@@ -86,6 +87,9 @@ class SeoScanner
         $visibility = $this->visibility->analyze(array_merge($analysisInput, $score));
         $topicIntelligence = $this->topicIntelligence->analyze(array_merge($analysisInput, $score, $visibility));
         $keywordTargeting = $this->keywordTargeting->analyze($analysisInput);
+        $keywordAlignment = $scan->scan_mode === 'keyword_focus'
+            ? $this->keywordAlignment->analyze($analysisInput, $scan->target_keywords ?? [])
+            : null;
         $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], $topicIntelligence['score_breakdown'], [
             'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
         ]);
@@ -130,6 +134,7 @@ class SeoScanner
                 'content_coverage_data' => $topicIntelligence['content_coverage_data'],
                 'ai_citation_readiness_data' => $topicIntelligence['ai_citation_readiness_data'],
                 'keyword_targeting_data' => $keywordTargeting,
+                'keyword_alignment_data' => $keywordAlignment,
                 'visibility_data' => $visibility['visibility_data'],
                 'opportunity_data' => $recommendations,
                 'score_breakdown' => $scoreBreakdown,
