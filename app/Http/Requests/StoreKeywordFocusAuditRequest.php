@@ -39,10 +39,8 @@ class StoreKeywordFocusAuditRequest extends FormRequest
             ]);
         }
 
-        $keywords = $this->normalizeKeywords((string) $this->input('target_keywords', ''));
-
         $this->merge([
-            'target_keywords' => $keywords,
+            'target_keywords' => $this->normalizeKeywords((string) $this->input('target_keywords', '')),
         ]);
     }
 
@@ -81,6 +79,6 @@ class StoreKeywordFocusAuditRequest extends FormRequest
             }
         }
 
-        return array_values(array_slice($keywords, 0, 20));
+        return array_values($keywords);
     }
 }
