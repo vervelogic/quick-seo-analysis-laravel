@@ -16,12 +16,12 @@
         <div class="relative mx-auto grid max-w-7xl gap-10 px-5 py-16 sm:px-6 sm:py-20 lg:grid-cols-[1.08fr_0.92fr] lg:px-8 lg:py-24">
             <div class="flex flex-col justify-center">
                 <p class="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-teal-300">Search & AI visibility intelligence</p>
-                <h1 class="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">See what your page currently communicates to Google and AI.</h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">QSA turns page signals into a practical visibility report covering SEO, AI readiness, citation confidence, commercial intent and content gaps.</p>
+                <h1 class="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">Understand what your page communicates. Validate what it should communicate.</h1>
+                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Choose between a Current Visibility Audit and a Keyword Focus Audit to understand how search engines and AI systems interpret your content.</p>
                 <div class="mt-8 grid grid-cols-1 gap-3 text-sm text-slate-300 sm:grid-cols-3">
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Current visibility audit</div>
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">AI answer readiness</div>
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Lead-ready reports</div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Current Visibility Audit</div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Keyword Focus Audit</div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">AI Readiness Audit <span class="text-teal-200">Coming Soon</span></div>
                 </div>
             </div>
 
@@ -60,12 +60,36 @@
         </div>
     </section>
 
+    <section class="bg-slate-50 py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div class="max-w-3xl">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">QSA Audit Suite</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Built for visibility decisions, not raw SEO checklists.</h2>
+                <p class="mt-4 text-base leading-7 text-slate-600">Start with current visibility, validate intended keyword targeting, then expand into AI readiness and competitive gap analysis as the platform grows.</p>
+            </div>
+            <div class="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+                @foreach ([
+                    ['title' => 'Current Visibility Audit', 'status' => 'Live', 'copy' => 'Understand current search and AI signals.'],
+                    ['title' => 'Keyword Focus Audit', 'status' => 'Beta', 'copy' => 'Validate intended search targeting.'],
+                    ['title' => 'AI Readiness Audit', 'status' => 'Coming Soon', 'copy' => 'Measure answer-engine and citation readiness.'],
+                    ['title' => 'Competitive Gap Audit', 'status' => 'Coming Soon', 'copy' => 'Compare topic and visibility gaps against competitors.'],
+                ] as $audit)
+                    <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-slate-700">{{ $audit['status'] }}</span>
+                        <h3 class="mt-5 text-xl font-black tracking-tight text-slate-950">{{ $audit['title'] }}</h3>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">{{ $audit['copy'] }}</p>
+                    </article>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
     <section class="bg-white py-16 sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
                 <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Audit paths</p>
                 <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Choose Your Audit Path</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Beta: Keyword Focus Audit is now available for businesses already targeting specific keywords through SEO campaigns.</p>
+                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Use Keyword Focus Audit when you already have target phrases and want to check page alignment.</p>
             </div>
 
             <div class="mt-10 grid gap-6 lg:grid-cols-2">
@@ -93,15 +117,22 @@
                         </div>
                         <span class="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Beta</span>
                     </div>
-                    <div class="mt-7 rounded-xl border border-white/10 bg-white/[0.06] p-5">
-                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-200">Keyword Focus checks</p>
-                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                            @foreach (['Keyword Alignment', 'Search Intent Match', 'Content Coverage', 'On-Page Fixes'] as $capability)
-                                <div class="flex items-center gap-3 rounded-lg bg-white/5 p-3 text-sm font-bold text-slate-100 ring-1 ring-white/10">
-                                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal-300/15 text-xs font-black text-teal-200">✓</span>
-                                    <span>{{ $capability }}</span>
-                                </div>
-                            @endforeach
+                    <div class="mt-7 grid gap-5 lg:grid-cols-2">
+                        <div class="rounded-xl border border-white/10 bg-white/[0.06] p-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-red-200">We do not measure</p>
+                            <div class="mt-4 space-y-2 text-sm font-bold text-slate-200">
+                                @foreach (['Search volume', 'Keyword difficulty', 'Rankings', 'Traffic'] as $item)
+                                    <p>{{ $item }}</p>
+                                @endforeach
+                            </div>
+                        </div>
+                        <div class="rounded-xl border border-white/10 bg-white/[0.06] p-5">
+                            <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-200">We do measure</p>
+                            <div class="mt-4 space-y-2 text-sm font-bold text-slate-100">
+                                @foreach (['Keyword support', 'Intent alignment', 'Content coverage', 'Commercial alignment', 'On-page signal strength'] as $item)
+                                    <p>{{ $item }}</p>
+                                @endforeach
+                            </div>
                         </div>
                     </div>
                     <a href="{{ route('keyword-focus.create') }}" class="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-6 font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-white/20 sm:w-auto">Start Keyword Focus Audit</a>
