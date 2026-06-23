@@ -16,6 +16,8 @@ class SeoScanner
         private readonly KeywordTargetingAnalyzer $keywordTargeting,
         private readonly KeywordAlignmentAnalyzer $keywordAlignment,
         private readonly ScanQualityAnalyzer $qualityAnalyzer,
+        private readonly PageTypeDetector $pageTypeDetector,
+        private readonly RecommendationGroupBuilder $recommendationGroups,
     ) {
     }
 
@@ -92,6 +94,7 @@ class SeoScanner
         $analysisInput = array_merge($data, [
             'url' => $effectiveUrl,
         ]);
+        $pageType = $this->pageTypeDetector->detect($analysisInput);
         $score = $this->scorer->calculate($data);
         $visibility = $this->visibility->analyze(array_merge($analysisInput, $score));
         $topicIntelligence = $this->topicIntelligence->analyze(array_merge($analysisInput, $score, $visibility));
@@ -102,11 +105,13 @@ class SeoScanner
         $scoreBreakdown = array_merge($score['score_breakdown'], $visibility['score_breakdown'], $topicIntelligence['score_breakdown'], [
             'overall_score' => $visibility['score_breakdown']['overall_visibility_score'],
         ]);
-        $recommendations = array_values(array_merge(
+        $rawRecommendations = array_values(array_merge(
             $score['recommendations'],
             $visibility['visibility_data']['opportunities'],
             $topicIntelligence['opportunities']
         ));
+        $recommendations = $this->recommendationGroups->filterDetailedItems($rawRecommendations, $pageType['type'] ?? 'Unknown');
+        $groupedRecommendations = $this->recommendationGroups->build($rawRecommendations, $analysisInput, $pageType, $scanQuality);
 
         if ($retrievalIssue) {
             $scoreBreakdown = array_map(fn () => 0, $scoreBreakdown);
@@ -122,7 +127,15 @@ class SeoScanner
                 'why_it_matters' => 'Critical page signals such as title, meta description or readable body content were missing from the server-side response.',
                 'how_to_fix' => 'Check whether the website blocks server-side requests, uses bot protection, serves a challenge page, times out, or returns different HTML to non-browser clients.',
             ]];
+            $groupedRecommendations = $this->recommendationGroups->build($recommendations, $analysisInput, $pageType, $scanQuality);
         }
+
+        $visibilityData = array_merge($visibility['visibility_data'], [
+            'page_type' => $pageType,
+            'scan_quality' => $scanQuality,
+            'recommendation_groups' => $groupedRecommendations,
+            'recommendation_count' => count($recommendations),
+        ]);
 
         $scan->result()->updateOrCreate(
             ['scan_id' => $scan->id],
@@ -160,8 +173,8 @@ class SeoScanner
                 'ai_citation_readiness_data' => $topicIntelligence['ai_citation_readiness_data'],
                 'keyword_targeting_data' => $keywordTargeting,
                 'keyword_alignment_data' => $keywordAlignment,
-                'visibility_data' => $visibility['visibility_data'],
-                'opportunity_data' => $recommendations,
+                'visibility_data' => $visibilityData,
+                'opportunity_data' => $groupedRecommendations,
                 'score_breakdown' => $scoreBreakdown,
                 'raw' => [
                     'requested_url' => $scan->url,
@@ -172,6 +185,7 @@ class SeoScanner
                     'parse_error' => $parseError,
                     'headers' => $fetch->headers,
                     'scan_quality' => $scanQuality,
+                    'page_type' => $pageType,
                     'fetch_diagnostics' => $fetchDiagnostics,
                 ],
             ])
