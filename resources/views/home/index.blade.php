@@ -8,6 +8,15 @@
             ['name' => 'AI Answer Engines', 'type' => 'AI Discovery', 'value' => 'Rising Fast', 'label' => 'ChatGPT, Gemini, Claude and Perplexity are changing how people discover answers', 'source' => 'Public AI usage and market reports', 'bar' => 72],
             ['name' => 'AI Overview Impact', 'type' => 'Google AI Search', 'value' => 'Growing', 'label' => 'AI-generated answers reduce traditional click behavior', 'source' => 'Public search industry research', 'bar' => 64],
         ];
+
+        $suite = [
+            ['title' => 'Current Visibility Audit', 'status' => 'Live', 'copy' => 'Understand what search engines and AI systems currently see.', 'accent' => 'blue'],
+            ['title' => 'Keyword Focus Audit', 'status' => 'Beta', 'copy' => 'Validate whether your page actually supports the keywords you are targeting.', 'accent' => 'teal'],
+            ['title' => 'AI Readiness Audit', 'status' => 'Coming Soon', 'copy' => 'Measure readiness for ChatGPT, Gemini, Claude and Perplexity.', 'accent' => 'indigo'],
+            ['title' => 'Brand Visibility Audit', 'status' => 'Coming Soon', 'copy' => 'Evaluate entity recognition, trust signals and citation readiness.', 'accent' => 'slate'],
+            ['title' => 'Competitive Gap Audit', 'status' => 'Coming Soon', 'copy' => 'Identify visibility gaps compared with competitors.', 'accent' => 'amber'],
+            ['title' => 'Content Opportunity Audit', 'status' => 'Coming Soon', 'copy' => 'Find missing topics, questions and content opportunities.', 'accent' => 'emerald'],
+        ];
     @endphp
 
     <section id="scan" class="relative overflow-hidden bg-slate-950">
@@ -17,11 +26,11 @@
             <div class="flex flex-col justify-center">
                 <p class="mb-4 text-sm font-semibold uppercase tracking-[0.2em] text-teal-300">Search & AI visibility intelligence</p>
                 <h1 class="max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">Understand what your page communicates. Validate what it should communicate.</h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Choose between a Current Visibility Audit and a Keyword Focus Audit to understand how search engines and AI systems interpret your content.</p>
+                <p class="mt-6 max-w-2xl text-lg leading-8 text-slate-300">Run a Current Visibility Audit or Keyword Focus Audit to understand how search engines and AI systems interpret your content.</p>
                 <div class="mt-8 grid grid-cols-1 gap-3 text-sm text-slate-300 sm:grid-cols-3">
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Current Visibility Audit</div>
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">Keyword Focus Audit</div>
-                    <div class="rounded-lg border border-white/10 bg-white/5 p-4">AI Readiness Audit <span class="text-teal-200">Coming Soon</span></div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4"><span class="block font-black text-white">Search Visibility</span><span class="mt-1 block text-slate-400">Current page signals</span></div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4"><span class="block font-black text-white">AI Visibility</span><span class="mt-1 block text-slate-400">Answer-engine readiness</span></div>
+                    <div class="rounded-lg border border-white/10 bg-white/5 p-4"><span class="block font-black text-white">Business Visibility</span><span class="mt-1 block text-slate-400">Opportunities to fix first</span></div>
                 </div>
             </div>
 
@@ -41,7 +50,7 @@
                     </div>
                 </div>
 
-                <h2 class="text-2xl font-bold tracking-tight text-slate-950">Get a free visibility report</h2>
+                <h2 class="text-2xl font-bold tracking-tight text-slate-950">Run a free visibility audit</h2>
                 <p class="mt-2 text-sm leading-6 text-slate-600">Enter a domain, homepage, or landing page URL. The first scan runs instantly.</p>
 
                 <form data-scan-form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
@@ -60,43 +69,19 @@
         </div>
     </section>
 
-    <section class="bg-slate-50 py-16 sm:py-20">
-        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-            <div class="max-w-3xl">
-                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">QSA Audit Suite</p>
-                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Built for visibility decisions, not raw SEO checklists.</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">Start with current visibility, validate intended keyword targeting, then expand into AI readiness and competitive gap analysis as the platform grows.</p>
-            </div>
-            <div class="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-                @foreach ([
-                    ['title' => 'Current Visibility Audit', 'status' => 'Live', 'copy' => 'Understand current search and AI signals.'],
-                    ['title' => 'Keyword Focus Audit', 'status' => 'Beta', 'copy' => 'Validate intended search targeting.'],
-                    ['title' => 'AI Readiness Audit', 'status' => 'Coming Soon', 'copy' => 'Measure answer-engine and citation readiness.'],
-                    ['title' => 'Competitive Gap Audit', 'status' => 'Coming Soon', 'copy' => 'Compare topic and visibility gaps against competitors.'],
-                ] as $audit)
-                    <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                        <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-slate-700">{{ $audit['status'] }}</span>
-                        <h3 class="mt-5 text-xl font-black tracking-tight text-slate-950">{{ $audit['title'] }}</h3>
-                        <p class="mt-3 text-sm leading-6 text-slate-600">{{ $audit['copy'] }}</p>
-                    </article>
-                @endforeach
-            </div>
-        </div>
-    </section>
-
     <section class="bg-white py-16 sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
-                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Audit paths</p>
-                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Choose Your Audit Path</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Use Keyword Focus Audit when you already have target phrases and want to check page alignment.</p>
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Choose Your Audit Path</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Start with the question you need answered.</h2>
+                <p class="mt-4 text-base leading-7 text-slate-600">Use Current Visibility Audit to see what your page communicates today. Use Keyword Focus Audit when you already have target phrases and need to validate alignment.</p>
             </div>
 
             <div class="mt-10 grid gap-6 lg:grid-cols-2">
                 <article class="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm sm:p-8">
                     <div class="absolute right-6 top-6 rounded-full bg-blue-600/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-700">Live</div>
                     <h3 class="text-2xl font-black tracking-tight text-slate-950">Current Visibility Audit</h3>
-                    <p class="mt-3 max-w-xl text-sm leading-6 text-slate-600">Understand what your page currently communicates to:</p>
+                    <p class="mt-3 max-w-xl text-sm leading-6 text-slate-600">Answer: what does this page currently communicate to search engines, AI answer engines and discovery systems?</p>
                     <div class="mt-6 grid gap-3 sm:grid-cols-2">
                         @foreach (['Google Search', 'Bing Search', 'AI Answer Engines', 'AI Overviews', 'Search Systems'] as $signal)
                             <div class="flex items-center gap-3 rounded-lg bg-white p-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-blue-100">
@@ -113,7 +98,7 @@
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h3 class="text-2xl font-black tracking-tight">Keyword Focus Audit</h3>
-                            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Already doing SEO? Check whether your page actually supports the keywords you are targeting.</p>
+                            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Answer: does this page actually support the keywords your SEO campaign is targeting?</p>
                         </div>
                         <span class="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Beta</span>
                     </div>
@@ -141,6 +126,27 @@
         </div>
     </section>
 
+    <section class="bg-slate-50 py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-3xl text-center">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">QSA Intelligence Suite</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Built for modern visibility across search engines, AI answer engines and discovery platforms.</h2>
+            </div>
+            <div class="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                @foreach ($suite as $audit)
+                    <article class="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div class="flex items-start justify-between gap-4">
+                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-slate-700">{{ $audit['status'] }}</span>
+                            <span class="h-3 w-3 rounded-full {{ $audit['status'] === 'Live' ? 'bg-blue-600' : ($audit['status'] === 'Beta' ? 'bg-teal-500' : 'bg-slate-300') }}"></span>
+                        </div>
+                        <h3 class="mt-5 text-xl font-black tracking-tight text-slate-950">{{ $audit['title'] }}</h3>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">{{ $audit['copy'] }}</p>
+                    </article>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
     <section class="bg-slate-950 py-16 text-white sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
@@ -148,7 +154,7 @@
                     <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-300">Market Intelligence Foundation</p>
                     <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">The Modern Discovery Ecosystem</h2>
                     <p class="mt-4 text-base leading-7 text-slate-300">Customers no longer discover brands only through Google links. Visibility now happens across search engines, AI answer engines, video, communities and zero-click results.</p>
-                    <p class="mt-5 text-sm leading-6 text-slate-400">QSA helps you understand what your website currently communicates to search engines and AI answer engines — before you spend more on SEO.</p>
+                    <p class="mt-5 text-sm leading-6 text-slate-400">QSA helps you understand what your website currently communicates to search engines and AI answer engines before you spend more on SEO.</p>
                     <div class="mt-6 flex flex-wrap gap-2">
                         @foreach (['Google', 'Bing', 'Yahoo', 'DuckDuckGo', 'ChatGPT', 'Gemini', 'Claude', 'Perplexity', 'YouTube', 'Reddit'] as $platform)
                             <span class="rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-slate-200 ring-1 ring-white/10">{{ $platform }}</span>
@@ -178,14 +184,30 @@
 
     <section id="benefits" class="bg-white py-16 sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
-            <div class="max-w-2xl">
-                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Built for agencies and growth teams</p>
-                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">A practical SEO report funnel today, a visibility intelligence platform tomorrow.</h2>
-            </div>
-            <div class="mt-10 grid gap-5 md:grid-cols-3">
-                <article class="rounded-lg border border-slate-200 p-6"><h3 class="font-bold text-slate-950">Lead capture baked in</h3><p class="mt-3 text-sm leading-6 text-slate-600">Collect contact details on the report page and connect future email delivery or CRM syncs.</p></article>
-                <article class="rounded-lg border border-slate-200 p-6"><h3 class="font-bold text-slate-950">White-label ready</h3><p class="mt-3 text-sm leading-6 text-slate-600">Company, branding, templates, widget keys, plans, and API keys are modeled from day one.</p></article>
-                <article class="rounded-lg border border-slate-200 p-6"><h3 class="font-bold text-slate-950">Scanner services</h3><p class="mt-3 text-sm leading-6 text-slate-600">SEO checks live in service classes so queue jobs, APIs, widgets, and AI modules can share the same core.</p></article>
+            <div class="grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
+                <div>
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Why traditional SEO reports are no longer enough</p>
+                    <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Modern visibility needs more than meta tags and headings.</h2>
+                    <p class="mt-4 text-base leading-7 text-slate-600">Traditional audits are useful, but they rarely explain what a page means to search engines, AI answer engines or commercial buyers. QSA bridges that gap with visibility intelligence built for decision makers.</p>
+                </div>
+                <div class="grid gap-5 sm:grid-cols-2">
+                    <article class="rounded-xl border border-slate-200 bg-slate-50 p-6">
+                        <h3 class="text-xl font-black text-slate-950">Traditional audits focus on</h3>
+                        <div class="mt-4 space-y-3 text-sm font-bold text-slate-700">
+                            @foreach (['Meta tags', 'Headings', 'Technical SEO'] as $item)
+                                <p>{{ $item }}</p>
+                            @endforeach
+                        </div>
+                    </article>
+                    <article class="rounded-xl border border-blue-100 bg-blue-50 p-6">
+                        <h3 class="text-xl font-black text-slate-950">Modern visibility requires</h3>
+                        <div class="mt-4 space-y-3 text-sm font-bold text-slate-700">
+                            @foreach (['Search engines', 'AI answer engines', 'Entity recognition', 'Citation readiness', 'Commercial intent', 'Content coverage', 'Discovery platforms'] as $item)
+                                <p>{{ $item }}</p>
+                            @endforeach
+                        </div>
+                    </article>
+                </div>
             </div>
         </div>
     </section>
@@ -194,14 +216,30 @@
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
                 <div>
-                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">What we check</p>
-                    <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">The essentials that make a first visibility conversation useful.</h2>
-                    <p class="mt-4 text-slate-600">QSA focuses on reliable signals that can be explained clearly to a prospect or client.</p>
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">What QSA checks</p>
+                    <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950">The signals behind the executive intelligence brief.</h2>
+                    <p class="mt-4 text-slate-600">QSA keeps technical SEO, but places it inside a larger visibility picture: search focus, AI visibility, commercial opportunity, content coverage and priority actions.</p>
                 </div>
                 <div class="grid gap-3 sm:grid-cols-2">
-                    @foreach (['Reachability and HTTP status', 'Title and meta description', 'H1 count and canonical URL', 'Robots meta and HTTPS', 'Page size and response time', 'Internal and external links', 'Images missing alt text', 'SEO, AI, GEO and AEO recommendations'] as $check)
+                    @foreach (['Current search focus', 'SEO and technical health', 'AI Visibility, GEO and AEO', 'Commercial intent signals', 'Content coverage gaps', 'Keyword focus alignment', 'Trust and citation readiness', 'Priority business actions'] as $check)
                         <div class="rounded-lg bg-white p-4 text-sm font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200">{{ $check }}</div>
                     @endforeach
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="bg-white py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div class="rounded-xl bg-slate-950 p-6 text-white shadow-sm sm:p-8 lg:flex lg:items-center lg:justify-between lg:gap-8">
+                <div>
+                    <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-300">Start with one page</p>
+                    <h2 class="mt-3 text-3xl font-black tracking-tight sm:text-4xl">See what search and AI systems understand before you decide what to fix.</h2>
+                    <p class="mt-4 max-w-3xl text-sm leading-6 text-slate-300">Run a Current Visibility Audit now, then use Keyword Focus Audit when you want to validate a specific SEO campaign page.</p>
+                </div>
+                <div class="mt-6 flex flex-col gap-3 sm:flex-row lg:mt-0 lg:shrink-0">
+                    <a href="#scan" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-white px-6 font-black text-slate-950 shadow-sm">Run Free Visibility Scan</a>
+                    <a href="{{ route('keyword-focus.create') }}" class="inline-flex min-h-12 items-center justify-center rounded-lg bg-teal-400 px-6 font-black text-slate-950 shadow-sm">Start Keyword Focus Audit</a>
                 </div>
             </div>
         </div>
