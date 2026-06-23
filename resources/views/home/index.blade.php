@@ -49,7 +49,7 @@
                     <label for="url" class="block text-sm font-semibold text-slate-800">Website URL</label>
                     <div class="flex flex-col gap-3 sm:flex-row">
                         <input id="url" name="url" value="{{ old('url') }}" placeholder="example.com" class="min-h-12 flex-1 rounded-lg border-slate-300 text-base shadow-sm focus:border-blue-600 focus:ring-blue-600" required>
-                        <button data-scan-button class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Scan</button>
+                        <button data-scan-button class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Run Free Visibility Scan</button>
                     </div>
                     <p class="text-xs font-medium text-slate-500">You can enter example.com, https://example.com, or http://example.com.</p>
                     @error('url')
@@ -63,37 +63,47 @@
     <section class="bg-white py-16 sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
-                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Audit modes</p>
-                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Choose the right audit for your current SEO stage</h2>
-                <p class="mt-4 text-base leading-7 text-slate-600">Whether you want to understand your current visibility or check if your page matches the keywords you are targeting, QSA helps you see what search engines and AI systems can understand from your page.</p>
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Audit paths</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Choose Your Audit Path</h2>
+                <p class="mt-4 text-base leading-7 text-slate-600">Start with a Current Visibility Audit to understand what search engines and AI systems currently see. Coming soon: Keyword Focus Audit for businesses already targeting specific keywords through SEO campaigns.</p>
             </div>
 
             <div class="mt-10 grid gap-6 lg:grid-cols-2">
                 <article class="relative overflow-hidden rounded-xl border border-blue-100 bg-gradient-to-br from-blue-50 to-white p-6 shadow-sm sm:p-8">
                     <div class="absolute right-6 top-6 rounded-full bg-blue-600/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-blue-700">Live</div>
-                    <h3 class="text-2xl font-black tracking-tight text-slate-950">Current Visibility Scan</h3>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">I want to know what my page currently says to Google and AI.</p>
-                    <form data-scan-form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
-                        @csrf
-                        <input name="url" placeholder="Website URL" class="min-h-12 w-full rounded-lg border-slate-300 text-base shadow-sm focus:border-blue-600 focus:ring-blue-600" required>
-                        <button data-scan-button class="qsa-scan-button inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Scan Current Visibility</button>
-                    </form>
+                    <h3 class="text-2xl font-black tracking-tight text-slate-950">Current Visibility Audit</h3>
+                    <p class="mt-3 max-w-xl text-sm leading-6 text-slate-600">Understand what your page currently communicates to:</p>
+                    <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                        @foreach (['Google Search', 'Bing Search', 'AI Answer Engines', 'AI Overviews', 'Search Systems'] as $signal)
+                            <div class="flex items-center gap-3 rounded-lg bg-white p-3 text-sm font-bold text-slate-800 shadow-sm ring-1 ring-blue-100">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal-50 text-xs font-black text-teal-700">✓</span>
+                                <span>{{ $signal }}</span>
+                            </div>
+                        @endforeach
+                    </div>
+                    <a href="#scan" class="qsa-scan-button mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 sm:w-auto">Run Visibility Audit</a>
                 </article>
 
-                <article class="rounded-xl border border-slate-200 bg-slate-950 p-6 text-white shadow-sm sm:p-8">
+                <article class="relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950 p-6 text-white shadow-sm sm:p-8">
+                    <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-teal-300 via-blue-400 to-indigo-400"></div>
                     <div class="flex items-start justify-between gap-4">
                         <div>
                             <h3 class="text-2xl font-black tracking-tight">Keyword Focus Audit</h3>
-                            <p class="mt-2 text-sm leading-6 text-slate-300">I am already doing SEO and want to check if my page matches the keywords I am targeting.</p>
+                            <p class="mt-3 max-w-xl text-sm leading-6 text-slate-300">Designed for businesses already investing in SEO. Validate whether your page aligns with the keywords you are targeting.</p>
                         </div>
-                        <span class="rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Coming Soon</span>
+                        <span class="shrink-0 rounded-full bg-white/10 px-3 py-1 text-xs font-black uppercase tracking-[0.14em] text-teal-200 ring-1 ring-white/10">Coming Soon</span>
                     </div>
-                    <div class="mt-6 space-y-4 opacity-90">
-                        <input placeholder="Website URL" class="min-h-12 w-full rounded-lg border-white/10 bg-white/10 text-base text-white placeholder:text-slate-400 shadow-sm" disabled>
-                        <textarea rows="4" placeholder="Enter keywords separated by commas, for example: Char Dham Yatra, Char Dham Yatra Package, Char Dham Package Cost" class="w-full rounded-lg border-white/10 bg-white/10 text-base text-white placeholder:text-slate-400 shadow-sm" disabled></textarea>
-                        <button class="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white/15 px-6 font-bold text-white ring-1 ring-white/15" type="button" disabled>Check Keyword Focus</button>
+                    <div class="mt-7 rounded-xl border border-white/10 bg-white/[0.06] p-5">
+                        <p class="text-xs font-bold uppercase tracking-[0.16em] text-teal-200">Future capabilities</p>
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                            @foreach (['Keyword Alignment Analysis', 'Search Intent Matching', 'Content Coverage Analysis', 'Commercial Intent Validation', 'SEO Campaign Verification'] as $capability)
+                                <div class="flex items-center gap-3 rounded-lg bg-white/5 p-3 text-sm font-bold text-slate-100 ring-1 ring-white/10">
+                                    <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal-300/15 text-xs font-black text-teal-200">✓</span>
+                                    <span>{{ $capability }}</span>
+                                </div>
+                            @endforeach
+                        </div>
                     </div>
-                    <p class="mt-4 text-xs leading-5 text-slate-400">Future mode will store scan_mode=current_visibility or keyword_focus, target_keywords as JSON, and keyword_alignment results.</p>
                 </article>
             </div>
         </div>
