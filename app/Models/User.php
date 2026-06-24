@@ -21,6 +21,12 @@ class User extends Authenticatable implements FilamentUser
         'password',
         'role',
         'is_admin',
+        'legacy_id',
+        'legacy_source',
+        'legacy_imported_at',
+        'legacy_login_provider',
+        'invite_required',
+        'legacy_metadata',
     ];
 
     protected $hidden = [
@@ -34,6 +40,9 @@ class User extends Authenticatable implements FilamentUser
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'legacy_imported_at' => 'datetime',
+            'invite_required' => 'boolean',
+            'legacy_metadata' => 'array',
         ];
     }
 
