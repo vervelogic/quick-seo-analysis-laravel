@@ -24,12 +24,20 @@ class Scan extends Model
         'error_message',
         'started_at',
         'completed_at',
+        'legacy_id',
+        'legacy_source',
+        'legacy_client_id',
+        'legacy_audit_type',
+        'legacy_score',
+        'legacy_created_at',
+        'normalized_domain',
     ];
 
     protected $casts = [
         'target_keywords' => 'array',
         'started_at' => 'datetime',
         'completed_at' => 'datetime',
+        'legacy_created_at' => 'datetime',
     ];
 
     protected static function booted(): void
