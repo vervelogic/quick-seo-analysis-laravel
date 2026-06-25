@@ -18,6 +18,7 @@ class ImportLegacyDotnetCommand extends Command
     protected $signature = 'qsa:import-legacy-dotnet
         {--path=storage/app/legacy-import : Directory containing exported CSV files}
         {--dry-run : Preview import without writing data}
+        {--preview : Export and display eligible scan-linked users without writing data}
         {--users : Import eligible users linked to AnalyzeUrls}
         {--scans : Import AnalyzeUrls scan history and archive SavedReport payloads}';
 
@@ -45,6 +46,7 @@ class ImportLegacyDotnetCommand extends Command
     {
         $path = $this->resolvePath((string) $this->option('path'));
         $dryRun = (bool) $this->option('dry-run');
+        $preview = (bool) $this->option('preview');
         $importUsers = (bool) $this->option('users');
         $importScans = (bool) $this->option('scans');
 
@@ -66,15 +68,23 @@ class ImportLegacyDotnetCommand extends Command
             return self::FAILURE;
         }
 
+        $userRows = $this->readCsv($usersFile);
         $scanRows = $this->readCsv($scansFile);
         $linkedClientIds = $this->linkedClientIds($scanRows);
         $this->summary['scans_found'] = count($scanRows);
         $this->summary['users_linked_to_scans'] = count($linkedClientIds);
 
+        if ($preview) {
+            $this->info('Preview mode: no database rows will be created or updated.');
+            $this->previewUsers($userRows, $linkedClientIds, $scanRows, $path);
+
+            return self::SUCCESS;
+        }
+
         $this->info(($dryRun ? 'Dry-run: ' : '').'Legacy import path: '.$path);
 
         if ($importUsers) {
-            $this->importUsers($this->readCsv($usersFile), $linkedClientIds, $dryRun);
+            $this->importUsers($userRows, $linkedClientIds, $dryRun);
         }
 
         if ($importScans) {
@@ -89,6 +99,80 @@ class ImportLegacyDotnetCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function previewUsers(array $rows, array $linkedClientIds, array $scanRows, string $path): void
+    {
+        $scanCounts = $this->scanCountsByClientId($scanRows);
+        $previewRows = [];
+
+        foreach ($rows as $row) {
+            $this->summary['users_found']++;
+            $legacyId = $this->value($row, 'ID');
+
+            if ($legacyId === '' || ! in_array($legacyId, $linkedClientIds, true)) {
+                continue;
+            }
+
+            $email = strtolower($this->value($row, 'Email'));
+            $name = trim($this->value($row, 'Name')) ?: trim($this->value($row, 'UserName')) ?: 'Legacy User '.$legacyId;
+
+            if (! $this->validEmail($email) || $this->looksSpammy($name, $email)) {
+                $this->summary['users_skipped_invalid_spam']++;
+                continue;
+            }
+
+            if (User::where('legacy_source', self::SOURCE)->where('legacy_id', $legacyId)->exists()) {
+                $this->summary['duplicate_rows_skipped']++;
+                continue;
+            }
+
+            if (User::where('email', $email)->exists()) {
+                $this->summary['duplicate_rows_skipped']++;
+                continue;
+            }
+
+            $scansCount = $scanCounts[$legacyId] ?? 0;
+            $previewRows[] = [
+                'legacy_id' => $legacyId,
+                'name' => $name,
+                'email' => $email,
+                'login_provider' => $this->value($row, 'LoginProvider') ?: 'legacy',
+                'scans_count' => $scansCount,
+                'added_on' => $this->value($row, 'AddedOn'),
+                'company_logo_flag' => $this->companyLogoFlag($this->value($row, 'CompanyLogo')),
+                'reason_included' => 'Linked to '.$scansCount.' legacy scan'.($scansCount === 1 ? '' : 's'),
+            ];
+        }
+
+        $this->summary['users_created'] = count($previewRows);
+        $this->writeUsersPreviewCsv($previewRows, $path);
+
+        $this->newLine();
+        $this->table(
+            ['legacy_id', 'name', 'email', 'login_provider', 'scans_count', 'added_on', 'company_logo flag', 'reason included'],
+            array_map(fn (array $row) => [
+                $row['legacy_id'],
+                $row['name'],
+                $row['email'],
+                $row['login_provider'],
+                $row['scans_count'],
+                $row['added_on'],
+                $row['company_logo_flag'],
+                $row['reason_included'],
+            ], $previewRows)
+        );
+
+        $this->newLine();
+        $this->table(['Metric', 'Count'], [
+            ['users found', $this->summary['users_found']],
+            ['users linked to scans', $this->summary['users_linked_to_scans']],
+            ['users skipped invalid spam', $this->summary['users_skipped_invalid_spam']],
+            ['users previewed for import', count($previewRows)],
+            ['duplicate rows skipped', $this->summary['duplicate_rows_skipped']],
+        ]);
+
+        $this->warn('Preview only. No database rows were created or updated.');
     }
 
     private function importUsers(array $rows, array $linkedClientIds, bool $dryRun): void
@@ -352,6 +436,65 @@ class ImportLegacyDotnetCommand extends Command
     private function linkedClientIds(array $scanRows): array
     {
         return array_values(array_unique(array_filter(array_map(fn ($row) => $this->value($row, 'ClientId'), $scanRows))));
+    }
+
+    private function scanCountsByClientId(array $scanRows): array
+    {
+        $counts = [];
+
+        foreach ($scanRows as $row) {
+            $clientId = $this->value($row, 'ClientId');
+
+            if ($clientId === '') {
+                continue;
+            }
+
+            $counts[$clientId] = ($counts[$clientId] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
+    private function writeUsersPreviewCsv(array $previewRows, string $path): void
+    {
+        $previewDir = $path.'/previews';
+
+        if (! is_dir($previewDir)) {
+            mkdir($previewDir, 0755, true);
+        }
+
+        $file = $previewDir.'/users_to_import_preview.csv';
+        $handle = fopen($file, 'w');
+
+        fputcsv($handle, ['legacy_id', 'name', 'email', 'login_provider', 'scans_count', 'added_on', 'company_logo_flag', 'reason_included']);
+
+        foreach ($previewRows as $row) {
+            fputcsv($handle, [
+                $row['legacy_id'],
+                $row['name'],
+                $row['email'],
+                $row['login_provider'],
+                $row['scans_count'],
+                $row['added_on'],
+                $row['company_logo_flag'],
+                $row['reason_included'],
+            ]);
+        }
+
+        fclose($handle);
+
+        $this->info('Preview CSV written: '.$file);
+    }
+
+    private function companyLogoFlag(string $filename): string
+    {
+        $filename = trim($filename);
+
+        if ($filename === '') {
+            return 'none';
+        }
+
+        return $this->safeLegacyFilename($filename) ? 'safe' : 'rejected';
     }
 
     private function value(array $row, string $key): string
