@@ -30,6 +30,14 @@ class ImportLegacyDotnetCommand extends Command
 
     private const REQUIRED_SCAN_HEADERS = ['Id', 'PageUrl', 'CreatedDate', 'ClientId', 'SavedReport', 'SeoScore', 'AuditType'];
 
+    private const DISPOSABLE_OR_TEST_EMAIL_DOMAINS = [
+        'mailinator.com',
+        'example.com',
+        'test.com',
+        'tempmail.com',
+        '10minutemail.com',
+    ];
+
     private array $summary = [
         'users_found' => 0,
         'users_linked_to_scans' => 0,
@@ -115,9 +123,10 @@ class ImportLegacyDotnetCommand extends Command
             }
 
             $email = strtolower($this->value($row, 'Email'));
-            $name = trim($this->value($row, 'Name')) ?: trim($this->value($row, 'UserName')) ?: 'Legacy User '.$legacyId;
+            $name = $this->resolvedLegacyName($row, $legacyId);
+            $skipReason = $this->legacyUserSkipReason($row, $name, $email);
 
-            if (! $this->validEmail($email) || $this->looksSpammy($name, $email)) {
+            if ($skipReason !== null) {
                 $this->summary['users_skipped_invalid_spam']++;
                 continue;
             }
@@ -141,7 +150,7 @@ class ImportLegacyDotnetCommand extends Command
                 'scans_count' => $scansCount,
                 'added_on' => $this->value($row, 'AddedOn'),
                 'company_logo_flag' => $this->companyLogoFlag($this->value($row, 'CompanyLogo')),
-                'reason_included' => 'Linked to '.$scansCount.' legacy scan'.($scansCount === 1 ? '' : 's'),
+                'reason_included' => 'Passed safety checks; linked to '.$scansCount.' legacy scan'.($scansCount === 1 ? '' : 's'),
             ];
         }
 
@@ -186,11 +195,12 @@ class ImportLegacyDotnetCommand extends Command
             }
 
             $email = strtolower($this->value($row, 'Email'));
-            $name = trim($this->value($row, 'Name')) ?: trim($this->value($row, 'UserName')) ?: 'Legacy User '.$legacyId;
+            $name = $this->resolvedLegacyName($row, $legacyId);
+            $skipReason = $this->legacyUserSkipReason($row, $name, $email);
 
-            if (! $this->validEmail($email) || $this->looksSpammy($name, $email)) {
+            if ($skipReason !== null) {
                 $this->summary['users_skipped_invalid_spam']++;
-                $this->warn('Skipping legacy user '.$legacyId.': invalid or spam-like email/name.');
+                $this->warn('Skipping legacy user '.$legacyId.': '.$skipReason.'.');
                 continue;
             }
 
@@ -495,6 +505,69 @@ class ImportLegacyDotnetCommand extends Command
         }
 
         return $this->safeLegacyFilename($filename) ? 'safe' : 'rejected';
+    }
+
+    private function resolvedLegacyName(array $row, string $legacyId): string
+    {
+        $name = $this->cleanLegacyName($this->value($row, 'Name'));
+        $username = $this->cleanLegacyName($this->value($row, 'UserName'));
+
+        return $name ?: ($username ?: 'Legacy User '.$legacyId);
+    }
+
+    private function cleanLegacyName(string $name): string
+    {
+        $name = trim($name);
+
+        return $this->nullLike($name) ? '' : $name;
+    }
+
+    private function legacyUserSkipReason(array $row, string $name, string $email): ?string
+    {
+        if (! $this->validEmail($email)) {
+            return 'invalid email';
+        }
+
+        if ($this->nullLike($this->value($row, 'Name')) && $this->cleanLegacyName($this->value($row, 'UserName')) === '') {
+            return 'missing usable name';
+        }
+
+        $loginProvider = $this->value($row, 'LoginProvider');
+
+        if ($loginProvider !== '' && preg_match('/^\d{4}-\d{2}-\d{2}/', $loginProvider)) {
+            return 'malformed CSV row';
+        }
+
+        $emailDomain = $this->domainFromEmail($email);
+
+        if ($emailDomain !== null && in_array($emailDomain, self::DISPOSABLE_OR_TEST_EMAIL_DOMAINS, true)) {
+            return 'disposable or test email domain';
+        }
+
+        $combined = strtolower($name.' '.$email);
+
+        if (preg_match('/\b(test|testqa|testuser|testaccount|testemail)\b/', $combined)) {
+            return 'test account';
+        }
+
+        if (preg_match('/(.)\1{8,}/', strtolower($name))) {
+            return 'spam-like repeated characters';
+        }
+
+        if (str_contains($name, '?') || str_contains($name, '�')) {
+            return 'damaged encoded name';
+        }
+
+        if ($this->looksSpammy($name, $email)) {
+            return 'spam-like name or email';
+        }
+
+        return null;
+    }
+
+    private function nullLike(string $value): bool
+    {
+        return in_array(strtolower(trim($value)), ['', 'null', 'n/a', 'na'], true);
     }
 
     private function value(array $row, string $key): string
