@@ -82,24 +82,26 @@ return new class extends Migration
             }
         });
 
-        Schema::create('legacy_report_snapshots', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('scan_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('legacy_source')->index();
-            $table->string('legacy_table')->index();
-            $table->string('legacy_id')->index();
-            $table->string('legacy_client_id')->nullable()->index();
-            $table->text('source_url')->nullable();
-            $table->longText('payload');
-            $table->string('payload_hash', 64)->index();
-            $table->json('metadata')->nullable();
-            $table->timestamp('legacy_created_at')->nullable()->index();
-            $table->timestamps();
+        if (! Schema::hasTable('legacy_report_snapshots')) {
+            Schema::create('legacy_report_snapshots', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('scan_id')->nullable()->constrained()->nullOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
+                $table->string('legacy_source')->index();
+                $table->string('legacy_table')->index();
+                $table->string('legacy_id')->index();
+                $table->string('legacy_client_id')->nullable()->index();
+                $table->text('source_url')->nullable();
+                $table->longText('payload');
+                $table->string('payload_hash', 64)->index();
+                $table->json('metadata')->nullable();
+                $table->timestamp('legacy_created_at')->nullable()->index();
+                $table->timestamps();
 
-            $table->unique(['legacy_source', 'legacy_table', 'legacy_id']);
-            $table->unique(['legacy_source', 'payload_hash']);
-        });
+                $table->unique(['legacy_source', 'legacy_table', 'legacy_id']);
+                $table->unique(['legacy_source', 'payload_hash']);
+            });
+        }
     }
 
     public function down(): void
