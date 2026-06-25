@@ -28,6 +28,33 @@ jobs:
       - name: Run local VPS deploy script
         run: /home/alphaver/deploy-qsa.sh
 
+  verify-legacy-import:
+    name: Verify legacy import readiness
+    needs: deploy-self-hosted
+    if: github.event_name == 'push' || inputs.deploy_mode == 'self-hosted'
+    runs-on:
+      - self-hosted
+      - qsa
+    timeout-minutes: 10
+
+    steps:
+      - name: Run safe VPS verification commands
+        run: |
+          set -euo pipefail
+
+          cd /home/alphaver/public_html/quick-seo-analysis
+
+          PHP="/opt/cpanel/ea-php83/root/usr/bin/php"
+          COMPOSER="/usr/local/bin/composer"
+
+          echo "CURRENT_DEPLOYED_COMMIT=$(git rev-parse HEAD)"
+          "$PHP" artisan optimize:clear
+          "$PHP" "$COMPOSER" dump-autoload
+          "$PHP" artisan migrate --force
+          "$PHP" artisan list | grep qsa
+          "$PHP" artisan qsa:inspect-legacy-dotnet
+          "$PHP" artisan qsa:import-legacy-dotnet --dry-run
+
   deploy-ssh-fallback:
     name: Deploy through SSH fallback
     if: github.event_name == 'workflow_dispatch' && inputs.deploy_mode == 'ssh-fallback'
