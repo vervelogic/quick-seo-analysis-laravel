@@ -2,6 +2,7 @@
 
 use App\Console\Commands\ImportLegacyDotnetCommand;
 use App\Console\Commands\InspectLegacyDotnetCommand;
+use App\Console\Commands\PrepareLegacyAccountsCommand;
 use App\Console\Commands\RepairLegacyAuditTypesCommand;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         InspectLegacyDotnetCommand::class,
         ImportLegacyDotnetCommand::class,
+        PrepareLegacyAccountsCommand::class,
         RepairLegacyAuditTypesCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
