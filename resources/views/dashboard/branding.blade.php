@@ -12,7 +12,7 @@
                     @if ($company->logo_path)
                         <img src="{{ asset('storage/'.$company->logo_path) }}" alt="{{ $company->name }}" class="h-20 w-20 rounded-2xl object-contain ring-1 ring-slate-200">
                     @else
-                        <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-950 text-2xl font-black text-white">{{ Str::of($company->name)->substr(0, 1)->upper() }}</div>
+                        <div class="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-950 text-2xl font-black text-white">{{ \Illuminate\Support\Str::of($company->name)->substr(0, 1)->upper() }}</div>
                     @endif
                     <h2 class="mt-5 text-2xl font-black">{{ $company->name }}</h2>
                     <p class="mt-1 text-sm text-slate-500">{{ $company->website_url ?? $company->domain ?? 'No website set' }}</p>
