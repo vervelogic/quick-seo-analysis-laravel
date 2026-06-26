@@ -27,8 +27,10 @@ class ReportDataBuilder
         $scoreExplanations = $this->scoreExplanations($result, $scores);
         $businessSummary = $this->businessSummary($scan, $result, $scores, $recommendations, $scanFailed);
         $opportunity = $this->opportunityScores($scores);
-        $sections = $this->sections($scan, $result, $scores, $scoreExplanations, $recommendations);
+        $priorityMatrix = $this->priorityMatrix($recommendations);
         $roadmap = $this->roadmap($recommendations, $scanFailed);
+        $competitorSummary = $this->competitorSummary();
+        $sections = $this->sections($scan, $result, $scores, $scoreExplanations, $recommendations, $priorityMatrix, $competitorSummary);
 
         return [
             'metadata' => [
@@ -61,6 +63,7 @@ class ReportDataBuilder
             'ai_prompt_intelligence' => $result?->prompt_intelligence_data ?? [],
             'content_coverage' => $result?->content_coverage_data ?? [],
             'citation_readiness' => $result?->ai_citation_readiness_data ?? [],
+            'competitor_summary' => $competitorSummary,
             'technical_seo' => $this->technicalSeo($result),
             'structured_data' => $result?->structured_data ?? [],
             'headings' => data_get($result?->on_page_data ?? [], 'headings', []),
@@ -69,6 +72,7 @@ class ReportDataBuilder
             'social_preview' => $result?->social_data ?? [],
             'recommendations' => [
                 'top_priority_actions' => $this->topPriorityActions($recommendations),
+                'priority_matrix' => $priorityMatrix,
                 'grouped' => $this->groupRecommendations($recommendations),
                 'all' => $recommendations->values()->all(),
             ],
@@ -130,6 +134,7 @@ class ReportDataBuilder
         ])->filter()->keys()->values()->all();
 
         return [
+            'overall_visibility' => $this->scoreExplanation($scores['overall_visibility'], ['Report generated' => filled($result)], $technicalMissing, 'Overall visibility blends search, AI, answer readiness, commercial intent and content depth into one business-facing view.'),
             'seo' => $this->scoreExplanation($scores['seo'], ['HTTPS enabled' => (bool) $result?->uses_https, 'Title detected' => filled($result?->title)], $technicalMissing, 'Search engines and AI systems need clear page signals to understand, rank and cite the page.'),
             'ai_visibility' => $this->scoreExplanation($scores['ai_visibility'], data_get($result?->ai_visibility_data ?? [], 'strengths', []), data_get($result?->ai_visibility_data ?? [], 'weaknesses', []), 'AI systems need entity, trust and expertise signals before they can confidently mention a brand.'),
             'geo' => $this->scoreExplanation($scores['geo'], data_get($result?->geo_data ?? [], 'strengths', []), data_get($result?->geo_data ?? [], 'recommendations', []), 'Generative engines reward pages that answer topics deeply and conversationally.'),
@@ -147,6 +152,7 @@ class ReportDataBuilder
 
         return [
             'score' => $score,
+            'label' => $score >= 80 ? 'Strong' : ($score >= 60 ? 'Developing' : ($score >= 35 ? 'Needs attention' : 'Critical')),
             'good' => $good,
             'missing' => $missing,
             'why_it_matters' => $why,
@@ -264,6 +270,43 @@ class ReportDataBuilder
             ->all();
     }
 
+    private function priorityMatrix(Collection $recommendations): array
+    {
+        $impactRank = ['high' => 3, 'medium' => 2, 'low' => 1];
+        $difficultyRank = ['low' => 3, 'medium' => 2, 'high' => 1];
+
+        return $recommendations
+            ->map(function (array $item) use ($impactRank, $difficultyRank): array {
+                $impact = strtolower((string) data_get($item, 'impact', 'medium'));
+                $difficulty = strtolower((string) data_get($item, 'difficulty', 'medium'));
+                $priorityScore = ($impactRank[$impact] ?? 2) + ($difficultyRank[$difficulty] ?? 2);
+
+                return [
+                    'issue' => data_get($item, 'issue', data_get($item, 'title', 'Improvement opportunity')),
+                    'category' => data_get($item, 'category', 'General'),
+                    'impact' => Str::headline($impact),
+                    'difficulty' => Str::headline($difficulty),
+                    'estimated_gain' => data_get($item, 'estimated_gain', 'Not estimated'),
+                    'priority' => $priorityScore >= 5 ? 'Do first' : ($priorityScore >= 4 ? 'Plan next' : 'Later'),
+                    'how_to_fix' => data_get($item, 'how_to_fix', data_get($item, 'recommendation', 'Review and improve this item.')),
+                ];
+            })
+            ->sortBy(fn (array $item): int => ['Do first' => 0, 'Plan next' => 1, 'Later' => 2][$item['priority']] ?? 1)
+            ->take(12)
+            ->values()
+            ->all();
+    }
+
+    private function competitorSummary(): array
+    {
+        return [
+            'status' => 'Future-ready',
+            'summary' => 'Competitor benchmarking is prepared as a report section, but external competitor data is not connected yet.',
+            'next_step' => 'Connect competitor tracking or import competitor URLs to compare visibility, content coverage and AI citation readiness.',
+            'available_now' => false,
+        ];
+    }
+
     private function roadmap(Collection $recommendations, bool $scanFailed): array
     {
         if ($scanFailed) {
@@ -297,21 +340,26 @@ class ReportDataBuilder
         return $actions->isNotEmpty() ? $actions->all() : [$fallback];
     }
 
-    private function sections(Scan $scan, ?ScanResult $result, array $scores, array $scoreExplanations, Collection $recommendations): array
+    private function sections(Scan $scan, ?ScanResult $result, array $scores, array $scoreExplanations, Collection $recommendations, array $priorityMatrix, array $competitorSummary): array
     {
         return [
             $this->section('executive_summary', 'Executive Business Summary', 'Plain-language status, risks and opportunities.', $scores['overall_visibility'], [], $this->topPriorityActions($recommendations), 10),
+            $this->section('overall_seo_health', 'Overall SEO Health', 'Search health based on technical, on-page and content signals.', $scores['seo'], $scoreExplanations['seo'] ?? [], [], 15),
             $this->section('score_breakdown', 'Score Breakdown With Explanations', 'SEO, AI, GEO, AEO, commercial, content and citation score detail.', $scores['overall_visibility'], $scoreExplanations, [], 20),
             $this->section('opportunity_scores', 'Opportunity Score', 'Qualitative opportunity levels without fake revenue or traffic claims.', null, [], [], 30),
             $this->section('search_focus', 'Current Search Focus', 'What the page appears optimized to communicate.', null, $this->currentSearchFocus($result), [], 40),
             $this->section('keyword_focus', 'Keyword Focus Alignment', 'Target keyword support for keyword-focus scans.', data_get($result?->keyword_alignment_data ?? [], 'overall_score'), $result?->keyword_alignment_data ?? [], [], 45, ($scan->scan_mode ?? '') === 'keyword_focus'),
             $this->section('ai_visibility', 'AI Visibility Summary', 'Readiness for AI systems and answer engines.', $scores['ai_visibility'], $result?->ai_visibility_data ?? [], [], 50),
-            $this->section('geo', 'GEO Summary', 'Generative Engine Optimization signals.', $scores['geo'], $result?->geo_data ?? [], [], 55),
-            $this->section('aeo', 'AEO Summary', 'Answer Engine Optimization signals.', $scores['aeo'], $result?->aeo_data ?? [], [], 60),
-            $this->section('topic_intelligence', 'Content & Topic Intelligence', 'Topics, entities, coverage, prompts and ranking potential.', $scores['content_depth'], $result?->topic_intelligence_data ?? [], [], 70),
+            $this->section('geo', 'GEO Readiness', 'Generative Engine Optimization signals.', $scores['geo'], $result?->geo_data ?? [], [], 55),
+            $this->section('aeo', 'AEO Readiness', 'Answer Engine Optimization signals.', $scores['aeo'], $result?->aeo_data ?? [], [], 60),
+            $this->section('citation_readiness', 'AI Citation Readiness', 'Trust and citation signals for AI mentionability.', $scores['citation_readiness'], $result?->ai_citation_readiness_data ?? [], [], 65),
+            $this->section('topic_intelligence', 'Topic Intelligence', 'Topics, entities, coverage, prompts and ranking potential.', $scores['content_depth'], $result?->topic_intelligence_data ?? [], [], 70),
+            $this->section('content_coverage', 'Content Coverage', 'Covered and missing content themes.', $scores['content_depth'], $result?->content_coverage_data ?? [], [], 72),
+            $this->section('competitor_summary', 'Competitor Summary', 'Future-ready competitor benchmarking placeholder.', null, $competitorSummary, [], 74),
+            $this->section('priority_matrix', 'Priority Matrix', 'Impact, difficulty and action priority for the main fixes.', null, $priorityMatrix, [], 78),
             $this->section('recommendations', 'Grouped Recommendations', 'Prioritized fixes grouped by business-friendly category.', null, [], $this->groupRecommendations($recommendations), 80),
-            $this->section('technical_seo', 'Technical SEO Details', 'Compact technical diagnostics lower in the report.', $scores['seo'], $this->technicalSeo($result), [], 90),
-            $this->section('roadmap_30_day', '30-Day Roadmap', 'Week-by-week action plan based on findings.', null, [], [], 100),
+            $this->section('technical_seo', 'Technical SEO Summary', 'Compact technical diagnostics lower in the report.', $scores['seo'], $this->technicalSeo($result), [], 90),
+            $this->section('roadmap_30_day', '30-Day SEO Roadmap', 'Week-by-week action plan based on findings.', null, [], [], 100),
         ];
     }
 
