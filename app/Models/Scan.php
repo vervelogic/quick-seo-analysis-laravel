@@ -15,6 +15,9 @@ class Scan extends Model
 
     protected $fillable = [
         'company_id',
+        'user_id',
+        'workspace_id',
+        'project_id',
         'uuid',
         'url',
         'normalized_url',
@@ -52,6 +55,21 @@ class Scan extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function workspace(): BelongsTo
+    {
+        return $this->belongsTo(Workspace::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function result(): HasOne
