@@ -4,10 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Company;
 use App\Models\Project;
-use App\Models\ReportUsage;
 use App\Models\Scan;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -55,7 +55,7 @@ class DashboardController
 
         return view('dashboard.projects', array_merge(
             $this->workspaceData($company),
-            ['projects' => $company?->projects()->withCount('company as scans_count')->latest()->paginate(20)]
+            ['projects' => $company?->projects()->latest()->paginate(20)]
         ));
     }
 
@@ -179,12 +179,15 @@ class DashboardController
         ];
     }
 
-    private function companyScans(?Company $company)
+    private function companyScans(?Company $company): Builder
     {
-        return Scan::query()
-            ->with('result')
-            ->where('company_id', $company?->id)
-            ->whereNull('legacy_source');
+        $query = Scan::query()->with('result')->whereNull('legacy_source');
+
+        if (! $company) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where('company_id', $company->id);
     }
 
     private function company(Request $request): ?Company
