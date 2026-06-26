@@ -61,6 +61,7 @@
             <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 sm:flex">
                 <a class="hover:text-slate-950" href="{{ route('home') }}#benefits">Benefits</a>
                 <a class="hover:text-slate-950" href="{{ route('home') }}#checks">Checks</a>
+                <a class="hover:text-slate-950" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Login' }}</a>
                 <a class="rounded-lg bg-slate-950 px-4 py-2 text-white hover:bg-slate-800" href="{{ route('home') }}#scan">Free report</a>
             </nav>
         </div>
@@ -79,7 +80,10 @@
     <footer class="border-t border-slate-200 bg-slate-50">
         <div class="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
             <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Built for fast SEO discovery.</p>
-            <a class="font-medium text-slate-700 hover:text-blue-700" href="/admin">Admin</a>
+            <div class="flex gap-4">
+                <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Client Login' }}</a>
+                <a class="font-medium text-slate-700 hover:text-blue-700" href="/admin">Admin</a>
+            </div>
         </div>
     </footer>
 </body>
