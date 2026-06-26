@@ -1,6 +1,13 @@
 @php
     $payloadSize = strlen((string) $snapshot->payload);
     $metadata = $snapshot->metadata ?? [];
+    $payloadSizeLabel = $payloadSize < 256
+        ? 'Minimal / empty payload ('.number_format($payloadSize).' bytes)'
+        : number_format($payloadSize).' bytes';
+    $savedReportLength = (int) ($metadata['saved_report_length'] ?? $payloadSize);
+    $savedReportLengthLabel = $savedReportLength < 256
+        ? 'Minimal / empty payload ('.number_format($savedReportLength).' bytes)'
+        : number_format($savedReportLength).' bytes';
 @endphp
 
 <div class="space-y-4">
@@ -26,12 +33,12 @@
 
         <div class="rounded-lg border border-gray-200 bg-white p-4">
             <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Payload Size</dt>
-            <dd class="mt-1 text-sm font-medium text-gray-950">{{ number_format($payloadSize) }} bytes</dd>
+            <dd class="mt-1 text-sm font-medium text-gray-950">{{ $payloadSizeLabel }}</dd>
         </div>
 
         <div class="rounded-lg border border-gray-200 bg-white p-4">
             <dt class="text-xs font-semibold uppercase tracking-wide text-gray-500">Saved Report Length</dt>
-            <dd class="mt-1 text-sm font-medium text-gray-950">{{ number_format((int) ($metadata['saved_report_length'] ?? $payloadSize)) }} bytes</dd>
+            <dd class="mt-1 text-sm font-medium text-gray-950">{{ $savedReportLengthLabel }}</dd>
         </div>
 
         <div class="rounded-lg border border-gray-200 bg-white p-4 sm:col-span-2">
