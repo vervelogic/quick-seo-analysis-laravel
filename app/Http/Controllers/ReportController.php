@@ -4,11 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Scan;
 use App\Models\ScanResult;
+use App\Services\Reports\ReportDataBuilder;
 use Illuminate\Contracts\View\View;
 
 class ReportController
 {
-    public function __invoke(Scan $scan): View
+    public function __invoke(Scan $scan, ReportDataBuilder $reportDataBuilder): View
     {
         $scan->load(['result', 'leads']);
 
@@ -47,6 +48,7 @@ class ReportController
             'scan' => $scan,
             'result' => $scan->result,
             'history' => $history,
+            'reportData' => $reportDataBuilder->build($scan),
         ]);
     }
 }
