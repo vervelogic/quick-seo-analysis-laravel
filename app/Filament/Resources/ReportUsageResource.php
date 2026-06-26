@@ -46,7 +46,7 @@ class ReportUsageResource extends Resource
                     ->suffix(' IST')
                     ->sortable(),
             ])
-            ->actions([Tables\Actions\ViewAction::make(), Tables\Actions\EditAction::make()])
+            ->actions([Tables\Actions\EditAction::make()])
             ->bulkActions([Tables\Actions\DeleteBulkAction::make()]);
     }
 
