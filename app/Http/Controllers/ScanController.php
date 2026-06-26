@@ -4,18 +4,30 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreScanRequest;
 use App\Models\Scan;
+use App\Services\Legacy\LegacyWorkspaceBuilder;
 use App\Services\Scanner\SeoScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 
 class ScanController
 {
-    public function __invoke(StoreScanRequest $request, SeoScanner $scanner): RedirectResponse
+    public function __invoke(StoreScanRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder): RedirectResponse
     {
+        $company = $request->user()?->company;
+        $workspace = $company ? $workspaceBuilder->ensureWorkspaceForCompany($company) : null;
+        $domain = parse_url((string) $request->input('normalized_url'), PHP_URL_HOST);
+        $project = ($company && $workspace && $domain)
+            ? $workspaceBuilder->ensureProjectForDomain($company, $workspace, strtolower($domain))
+            : null;
+
         $scan = Scan::query()->create([
-            'company_id' => $request->user()?->company_id,
+            'company_id' => $company?->id,
+            'user_id' => $request->user()?->id,
+            'workspace_id' => $workspace?->id,
+            'project_id' => $project?->id,
             'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
+            'normalized_domain' => $domain ? strtolower($domain) : null,
             'scan_mode' => 'current_visibility',
             'status' => 'pending',
         ]);
