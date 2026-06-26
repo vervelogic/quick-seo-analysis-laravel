@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\LegacyAccount;
 use App\Models\Project;
 use App\Models\Scan;
 use App\Models\User;
+use App\Services\Legacy\LegacyWorkspaceBuilder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +25,7 @@ class DashboardController
         return view('dashboard.index', array_merge(
             $this->workspaceData($company),
             [
+                'pendingLegacyAccounts' => $this->pendingLegacyAccounts($request->user()),
                 'recentScans' => $this->companyScans($company)->latest()->limit(6)->get(),
                 'recentReports' => $this->companyScans($company)->whereHas('result')->latest()->limit(6)->get(),
             ]
@@ -55,11 +58,11 @@ class DashboardController
 
         return view('dashboard.projects', array_merge(
             $this->workspaceData($company),
-            ['projects' => $company?->projects()->latest()->paginate(20)]
+            ['projects' => $company?->projects()->withCount('scans')->latest()->paginate(20)]
         ));
     }
 
-    public function storeProject(Request $request): RedirectResponse
+    public function storeProject(Request $request, LegacyWorkspaceBuilder $workspaceBuilder): RedirectResponse
     {
         $company = $this->requireCompany($request);
         $this->authorizeManager($request->user());
@@ -70,10 +73,15 @@ class DashboardController
             'status' => ['required', Rule::in(['active', 'paused', 'archived'])],
         ]);
 
+        $domain = isset($data['website_url']) ? parse_url($data['website_url'], PHP_URL_HOST) : null;
+        $workspace = $workspaceBuilder->ensureWorkspaceForCompany($company);
+
         $company->projects()->create([
+            'workspace_id' => $workspace->id,
             'name' => $data['name'],
             'slug' => Str::slug($data['name']).'-'.Str::lower(Str::random(5)),
             'website_url' => $data['website_url'] ?? null,
+            'normalized_domain' => $domain ? strtolower($domain) : null,
             'status' => $data['status'],
         ]);
 
@@ -92,6 +100,8 @@ class DashboardController
             'website_url' => ['nullable', 'url:http,https', 'max:255'],
             'status' => ['required', Rule::in(['active', 'paused', 'archived'])],
         ]);
+
+        $data['normalized_domain'] = isset($data['website_url']) ? strtolower((string) parse_url($data['website_url'], PHP_URL_HOST)) : null;
 
         $project->update($data);
 
@@ -161,7 +171,7 @@ class DashboardController
     private function workspaceData(?Company $company): array
     {
         $monthlyScanLimit = $company?->planLimit('monthly_scans');
-        $scansUsed = $this->companyScans($company)->where('created_at', '>=', now()->startOfMonth())->count();
+        $scansUsed = $this->liveCompanyScans($company)->where('created_at', '>=', now()->startOfMonth())->count();
         $reportsGenerated = $company?->reportUsages()->where('action', 'generated')->count() ?? 0;
         $pdfDownloads = $company?->reportUsages()->where('action', 'downloaded')->count() ?? 0;
         $remainingCredits = is_numeric($monthlyScanLimit) ? max(0, (int) $monthlyScanLimit - $scansUsed) : null;
@@ -181,13 +191,31 @@ class DashboardController
 
     private function companyScans(?Company $company): Builder
     {
-        $query = Scan::query()->with('result')->whereNull('legacy_source');
+        $query = Scan::query()->with(['result', 'project']);
 
         if (! $company) {
             return $query->whereRaw('1 = 0');
         }
 
         return $query->where('company_id', $company->id);
+    }
+
+    private function liveCompanyScans(?Company $company): Builder
+    {
+        return $this->companyScans($company)->whereNull('legacy_source');
+    }
+
+    private function pendingLegacyAccounts(?User $user)
+    {
+        if (! $user) {
+            return collect();
+        }
+
+        return LegacyAccount::query()
+            ->where('status', LegacyAccount::STATUS_PENDING_CLAIM)
+            ->where('email', strtolower($user->email))
+            ->latest('last_activity_at')
+            ->get();
     }
 
     private function company(Request $request): ?Company
