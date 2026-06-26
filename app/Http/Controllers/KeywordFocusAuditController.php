@@ -6,8 +6,8 @@ use App\Http\Requests\StoreKeywordFocusAuditRequest;
 use App\Models\Scan;
 use App\Services\Scanner\SeoScanner;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
 use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 
 class KeywordFocusAuditController
 {
@@ -21,6 +21,7 @@ class KeywordFocusAuditController
         $keywords = $request->validated('target_keywords');
 
         $scan = Scan::query()->create([
+            'company_id' => $request->user()?->company_id,
             'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
             'scan_mode' => 'keyword_focus',
