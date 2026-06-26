@@ -2,7 +2,7 @@
     <div class="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 class="text-2xl font-black tracking-tight">Create Project</h2>
-            <p class="mt-1 text-sm text-slate-500">Projects group future scans and reports by website or client.</p>
+            <p class="mt-1 text-sm text-slate-500">Projects group scans and reports by website or client.</p>
 
             @if ($canManageProjects && $company)
                 <form method="POST" action="{{ route('dashboard.projects.store') }}" class="mt-6 space-y-4">
@@ -57,7 +57,8 @@
                                 </select>
                             </label>
                             <div class="lg:col-span-3 flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500">
-                                <span>Scans count: not linked yet</span>
+                                <span>{{ $project->scans_count ?? 0 }} scan{{ ($project->scans_count ?? 0) === 1 ? '' : 's' }}</span>
+                                <span>{{ $project->normalized_domain ?: parse_url((string) $project->website_url, PHP_URL_HOST) }}</span>
                                 <span>Created {{ $project->created_at?->timezone(config('app.timezone'))->format('d M Y, h:i A') }} IST</span>
                                 @if ($canManageProjects)
                                     <button class="rounded-xl bg-blue-600 px-4 py-2 font-black text-white hover:bg-blue-700">Save</button>
