@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ReportUsage;
 use App\Models\Scan;
+use App\Services\Reports\ReportDataBuilder;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 
 class WhiteLabelReportController
 {
-    public function show(Request $request, Scan $scan): View|RedirectResponse
+    public function show(Request $request, Scan $scan, ReportDataBuilder $reportDataBuilder): View|RedirectResponse
     {
         try {
             $user = $request->user();
@@ -22,6 +23,8 @@ class WhiteLabelReportController
             abort_if($scan->legacy_source, 404, 'Legacy archive reports are not available for white-label download.');
 
             $scan->load('result');
+            $reportData = $reportDataBuilder->build($scan, $company);
+            $whiteLabelActive = (bool) data_get($reportData, 'branding.white_label_active');
 
             ReportUsage::query()->create([
                 'company_id' => $company->id,
@@ -33,7 +36,7 @@ class WhiteLabelReportController
                 'metadata' => [
                     'scan_uuid' => $scan->uuid,
                     'scan_mode' => $scan->scan_mode,
-                    'white_label_active' => $company->white_label_enabled && $company->featureEnabled('white_label_reports'),
+                    'white_label_active' => $whiteLabelActive,
                 ],
             ]);
 
@@ -41,7 +44,8 @@ class WhiteLabelReportController
                 'scan' => $scan,
                 'result' => $scan->result,
                 'company' => $company,
-                'whiteLabelActive' => $company->white_label_enabled && $company->featureEnabled('white_label_reports'),
+                'whiteLabelActive' => $whiteLabelActive,
+                'reportData' => $reportData,
             ]);
         } catch (\Symfony\Component\HttpKernel\Exception\HttpExceptionInterface $exception) {
             throw $exception;
