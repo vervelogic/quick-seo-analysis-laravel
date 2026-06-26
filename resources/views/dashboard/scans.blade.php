@@ -18,7 +18,7 @@
                         <th class="px-4 py-4">Score</th>
                         <th class="px-4 py-4">Scan Type</th>
                         <th class="px-4 py-4">Created</th>
-                        <th class="px-4 py-4">Report</th>
+                        <th class="px-4 py-4">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 bg-white">
@@ -32,7 +32,14 @@
                             <td class="px-4 py-4 font-black">{{ $scan->result?->score ?? 'N/A' }}</td>
                             <td class="px-4 py-4 text-slate-600">{{ str_replace('_', ' ', $scan->scan_mode ?? 'current_visibility') }}</td>
                             <td class="px-4 py-4 text-slate-600">{{ $scan->created_at?->timezone(config('app.timezone'))->format('d M Y, h:i A') }} IST</td>
-                            <td class="px-4 py-4"><a href="{{ route('report.show', $scan->uuid) }}" class="font-bold text-blue-700">Open</a></td>
+                            <td class="px-4 py-4">
+                                <div class="flex flex-wrap gap-2">
+                                    <a href="{{ route('report.show', $scan->uuid) }}" class="font-bold text-blue-700">Open</a>
+                                    @if ($scan->result)
+                                        <a href="{{ route('dashboard.reports.white-label-pdf', $scan->uuid) }}" class="font-bold text-slate-900">White-label PDF</a>
+                                    @endif
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
