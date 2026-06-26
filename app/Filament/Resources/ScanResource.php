@@ -31,7 +31,7 @@ class ScanResource extends Resource
             ])->required(),
             Forms\Components\TextInput::make('normalized_domain')->maxLength(255),
             Forms\Components\TextInput::make('legacy_score')->label('Legacy score')->numeric()->disabled(),
-            Forms\Components\TextInput::make('legacy_audit_type')->label('Legacy audit type')->disabled(),
+            Forms\Components\TextInput::make('legacy_audit_type')->label('Legacy audit type')->formatStateUsing(fn (?string $state): string => self::displayAuditType($state))->disabled(),
             Forms\Components\TextInput::make('legacy_client_id')->label('Legacy client ID')->disabled(),
             Forms\Components\Textarea::make('error_message')->columnSpanFull(),
         ]);
@@ -77,7 +77,12 @@ class ScanResource extends Resource
                 Tables\Columns\TextColumn::make('legacy_audit_type')
                     ->label('Audit Type')
                     ->badge()
-                    ->placeholder('N/A'),
+                    ->formatStateUsing(fn (?string $state): string => self::displayAuditType($state))
+                    ->color(fn (?string $state): string => match (self::displayAuditType($state)) {
+                        'Desktop' => 'info',
+                        'Mobile' => 'success',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('legacy_created_at')
                     ->label('Legacy Created')
                     ->dateTime('d M Y, h:i A')
@@ -178,5 +183,20 @@ class ScanResource extends Resource
             'view' => Pages\ViewScan::route('/{record}'),
             'edit' => Pages\EditScan::route('/{record}/edit'),
         ];
+    }
+
+    private static function displayAuditType(?string $value): string
+    {
+        $value = trim((string) $value);
+
+        if (preg_match('/\bdesktop\b/i', $value)) {
+            return 'Desktop';
+        }
+
+        if (preg_match('/\bmobile\b/i', $value)) {
+            return 'Mobile';
+        }
+
+        return 'Unknown';
     }
 }
