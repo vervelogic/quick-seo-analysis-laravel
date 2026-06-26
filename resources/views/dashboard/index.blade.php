@@ -1,4 +1,27 @@
 <x-layouts.dashboard title="Dashboard">
+    @if (($pendingLegacyAccounts ?? collect())->isNotEmpty())
+        <section class="mb-6 rounded-3xl border border-blue-200 bg-blue-50 p-8 shadow-sm">
+            <p class="text-sm font-black uppercase tracking-[0.18em] text-blue-700">Welcome back</p>
+            <h2 class="mt-3 text-3xl font-black tracking-tight text-blue-950">We found your previous Quick SEO Analysis account.</h2>
+            <div class="mt-5 grid gap-4 md:grid-cols-3">
+                @foreach ($pendingLegacyAccounts as $legacyAccount)
+                    <article class="rounded-2xl border border-blue-100 bg-white p-5">
+                        <p class="text-lg font-black text-slate-950">{{ $legacyAccount->name ?? $legacyAccount->email }}</p>
+                        <ul class="mt-4 space-y-2 text-sm font-semibold text-slate-700">
+                            <li>{{ $legacyAccount->scan_count }} historical scans</li>
+                            <li>{{ $legacyAccount->report_count }} reports</li>
+                            <li>Last activity: {{ $legacyAccount->last_activity_at?->timezone(config('app.timezone'))->format('d M Y, h:i A') ?? 'N/A' }} IST</li>
+                        </ul>
+                        <form method="POST" action="{{ route('dashboard.legacy-accounts.claim', $legacyAccount) }}" class="mt-5">
+                            @csrf
+                            <button class="w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-black text-white hover:bg-blue-700">Claim previous account</button>
+                        </form>
+                    </article>
+                @endforeach
+            </div>
+        </section>
+    @endif
+
     @unless ($company)
         <section class="rounded-3xl border border-amber-200 bg-amber-50 p-8">
             <p class="text-sm font-black uppercase tracking-[0.18em] text-amber-700">Workspace setup needed</p>
@@ -56,6 +79,9 @@
                             <div>
                                 <p class="font-black">{{ parse_url($scan->normalized_url, PHP_URL_HOST) ?? $scan->url }}</p>
                                 <p class="mt-1 truncate text-sm text-slate-500">{{ $scan->normalized_url ?? $scan->url }}</p>
+                                @if ($scan->project)
+                                    <p class="mt-1 text-xs font-bold text-slate-400">Project: {{ $scan->project->name }}</p>
+                                @endif
                             </div>
                             <a href="{{ route('report.show', $scan->uuid) }}" class="text-sm font-bold text-blue-700">Open report</a>
                         </div>
