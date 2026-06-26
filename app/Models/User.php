@@ -14,12 +14,20 @@ class User extends Authenticatable implements FilamentUser
     use HasFactory;
     use Notifiable;
 
+    public const COMPANY_ROLE_OWNER = 'owner';
+    public const COMPANY_ROLE_ADMIN = 'admin';
+    public const COMPANY_ROLE_MANAGER = 'manager';
+    public const COMPANY_ROLE_VIEWER = 'viewer';
+
     protected $fillable = [
         'company_id',
         'name',
         'email',
         'password',
         'role',
+        'company_role',
+        'permissions',
+        'last_active_at',
         'is_admin',
         'legacy_id',
         'legacy_source',
@@ -39,6 +47,8 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'permissions' => 'array',
+            'last_active_at' => 'datetime',
             'is_admin' => 'boolean',
             'legacy_imported_at' => 'datetime',
             'invite_required' => 'boolean',
@@ -54,5 +64,27 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         return $this->is_admin;
+    }
+
+    public function isCompanyOwner(): bool
+    {
+        return $this->company_role === self::COMPANY_ROLE_OWNER;
+    }
+
+    public function canManageCompany(): bool
+    {
+        return in_array($this->company_role, [
+            self::COMPANY_ROLE_OWNER,
+            self::COMPANY_ROLE_ADMIN,
+        ], true);
+    }
+
+    public function canManageScans(): bool
+    {
+        return in_array($this->company_role, [
+            self::COMPANY_ROLE_OWNER,
+            self::COMPANY_ROLE_ADMIN,
+            self::COMPANY_ROLE_MANAGER,
+        ], true);
     }
 }
