@@ -99,6 +99,16 @@ class Company extends Model
         return $this->hasMany(Project::class);
     }
 
+    public function workspaces(): HasMany
+    {
+        return $this->hasMany(Workspace::class);
+    }
+
+    public function legacyAccounts(): HasMany
+    {
+        return $this->hasMany(LegacyAccount::class);
+    }
+
     public function integrationConnections(): HasMany
     {
         return $this->hasMany(IntegrationConnection::class);
