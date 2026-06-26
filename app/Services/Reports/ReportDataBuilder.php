@@ -18,15 +18,15 @@ class ReportDataBuilder
         $company ??= $scan->company;
         $raw = $result?->raw ?? [];
         $scoreBreakdown = $result?->score_breakdown ?? [];
-        $recommendations = collect($result?->recommendations ?? []);
+        $recommendations = collect($result?->recommendations ?? [])->filter(fn ($item): bool => is_array($item))->values();
         $finalUrl = data_get($raw, 'final_url') ?: $scan->normalized_url ?: $scan->url;
         $domain = parse_url($finalUrl, PHP_URL_HOST) ?: $scan->normalized_domain ?: parse_url($scan->normalized_url ?? '', PHP_URL_HOST) ?: 'Unknown domain';
         $scanFailed = $scan->status === 'failed' || (($result?->is_reachable) === false) || ! $result;
 
         $scores = $this->scores($result, $scoreBreakdown, $scanFailed);
-        $scoreExplanations = $this->scoreExplanations($result, $scores, $recommendations);
+        $scoreExplanations = $this->scoreExplanations($result, $scores);
         $businessSummary = $this->businessSummary($scan, $result, $scores, $recommendations, $scanFailed);
-        $opportunity = $this->opportunityScores($result, $recommendations, $scores);
+        $opportunity = $this->opportunityScores($scores);
         $sections = $this->sections($scan, $result, $scores, $scoreExplanations, $recommendations);
         $roadmap = $this->roadmap($recommendations, $scanFailed);
 
@@ -120,7 +120,7 @@ class ReportDataBuilder
         ];
     }
 
-    private function scoreExplanations(?ScanResult $result, array $scores, Collection $recommendations): array
+    private function scoreExplanations(?ScanResult $result, array $scores): array
     {
         $technicalMissing = collect([
             'Meta description' => blank($result?->meta_description),
@@ -184,7 +184,7 @@ class ReportDataBuilder
         ];
     }
 
-    private function opportunityScores(?ScanResult $result, Collection $recommendations, array $scores): array
+    private function opportunityScores(array $scores): array
     {
         $weakSignals = collect($scores)->filter(fn (int $score): bool => $score < 60)->count();
         $level = fn (int $score): string => $score < 40 ? 'Very High' : ($score < 65 ? 'High' : ($score < 80 ? 'Medium' : 'Low'));
@@ -234,7 +234,7 @@ class ReportDataBuilder
         return [
             'internal_links_count' => $result?->internal_links_count,
             'external_links_count' => $result?->external_links_count,
-            'details' => $result?->on_page_data['links'] ?? [],
+            'details' => data_get($result?->on_page_data ?? [], 'links', []),
         ];
     }
 
@@ -243,7 +243,7 @@ class ReportDataBuilder
         return [
             'images_count' => $result?->images_count,
             'images_missing_alt_count' => $result?->images_missing_alt_count,
-            'details' => $result?->on_page_data['images'] ?? [],
+            'details' => data_get($result?->on_page_data ?? [], 'images', []),
         ];
     }
 
