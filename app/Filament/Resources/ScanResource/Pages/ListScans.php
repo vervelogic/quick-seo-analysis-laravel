@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\ScanResource\Pages;
 
 use App\Filament\Resources\ScanResource;
+use App\Models\Scan;
 use Filament\Actions;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
@@ -28,7 +29,7 @@ class ListScans extends ListRecords
                     ->whereNull('legacy_source')
                     ->where('status', '!=', 'legacy_archived')),
             'legacy' => Tab::make('Legacy Archived Scans')
-                ->badge(fn (): int => static::getResource()::getModel()::query()
+                ->badge(fn (): int => Scan::query()
                     ->where(fn (Builder $query): Builder => $query
                         ->where('status', 'legacy_archived')
                         ->orWhereNotNull('legacy_source'))
