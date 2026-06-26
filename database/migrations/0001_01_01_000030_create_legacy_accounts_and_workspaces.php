@@ -49,11 +49,15 @@ return new class extends Migration
             if (! Schema::hasColumn('projects', 'workspace_id')) {
                 $table->foreignId('workspace_id')->nullable()->after('company_id')->constrained()->nullOnDelete();
             }
+        });
 
+        Schema::table('projects', function (Blueprint $table) {
             if (! Schema::hasColumn('projects', 'normalized_domain')) {
                 $table->string('normalized_domain')->nullable()->after('website_url')->index();
             }
+        });
 
+        Schema::table('projects', function (Blueprint $table) {
             if (! Schema::hasColumn('projects', 'legacy_source')) {
                 $table->string('legacy_source')->nullable()->after('status')->index();
             }
@@ -63,11 +67,15 @@ return new class extends Migration
             if (! Schema::hasColumn('scans', 'user_id')) {
                 $table->foreignId('user_id')->nullable()->after('company_id')->constrained()->nullOnDelete();
             }
+        });
 
+        Schema::table('scans', function (Blueprint $table) {
             if (! Schema::hasColumn('scans', 'workspace_id')) {
                 $table->foreignId('workspace_id')->nullable()->after('user_id')->constrained()->nullOnDelete();
             }
+        });
 
+        Schema::table('scans', function (Blueprint $table) {
             if (! Schema::hasColumn('scans', 'project_id')) {
                 $table->foreignId('project_id')->nullable()->after('workspace_id')->constrained()->nullOnDelete();
             }
@@ -76,25 +84,27 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('scans', function (Blueprint $table) {
-            foreach (['project_id', 'workspace_id', 'user_id'] as $column) {
+        foreach (['project_id', 'workspace_id', 'user_id'] as $column) {
+            Schema::table('scans', function (Blueprint $table) use ($column) {
                 if (Schema::hasColumn('scans', $column)) {
                     $table->dropConstrainedForeignId($column);
                 }
-            }
-        });
+            });
+        }
 
         Schema::table('projects', function (Blueprint $table) {
             if (Schema::hasColumn('projects', 'workspace_id')) {
                 $table->dropConstrainedForeignId('workspace_id');
             }
+        });
 
-            foreach (['normalized_domain', 'legacy_source'] as $column) {
+        foreach (['normalized_domain', 'legacy_source'] as $column) {
+            Schema::table('projects', function (Blueprint $table) use ($column) {
                 if (Schema::hasColumn('projects', $column)) {
                     $table->dropColumn($column);
                 }
-            }
-        });
+            });
+        }
 
         Schema::dropIfExists('legacy_accounts');
         Schema::dropIfExists('workspaces');
