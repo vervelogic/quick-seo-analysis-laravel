@@ -13,6 +13,7 @@ class ScanController
     public function __invoke(StoreScanRequest $request, SeoScanner $scanner): RedirectResponse
     {
         $scan = Scan::query()->create([
+            'company_id' => $request->user()?->company_id,
             'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
             'scan_mode' => 'current_visibility',
