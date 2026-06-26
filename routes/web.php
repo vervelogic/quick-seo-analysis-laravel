@@ -7,6 +7,7 @@ use App\Http\Controllers\KeywordFocusReportSectionController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScanController;
+use App\Http\Controllers\WhiteLabelReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => view('home.index'))->name('home');
@@ -22,6 +23,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
     Route::get('/dashboard/scans', [DashboardController::class, 'scans'])->name('dashboard.scans');
     Route::get('/dashboard/reports', [DashboardController::class, 'reports'])->name('dashboard.reports');
+    Route::get('/dashboard/reports/{scan:uuid}/white-label-pdf', [WhiteLabelReportController::class, 'show'])->name('dashboard.reports.white-label-pdf');
     Route::get('/dashboard/projects', [DashboardController::class, 'projects'])->name('dashboard.projects');
     Route::post('/dashboard/projects', [DashboardController::class, 'storeProject'])->name('dashboard.projects.store');
     Route::patch('/dashboard/projects/{project}', [DashboardController::class, 'updateProject'])->name('dashboard.projects.update');
