@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreKeywordFocusAuditRequest;
 use App\Models\Scan;
+use App\Services\Legacy\LegacyWorkspaceBuilder;
 use App\Services\Scanner\SeoScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -16,14 +17,24 @@ class KeywordFocusAuditController
         return view('keyword-focus.create');
     }
 
-    public function store(StoreKeywordFocusAuditRequest $request, SeoScanner $scanner): RedirectResponse
+    public function store(StoreKeywordFocusAuditRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder): RedirectResponse
     {
         $keywords = $request->validated('target_keywords');
+        $company = $request->user()?->company;
+        $workspace = $company ? $workspaceBuilder->ensureWorkspaceForCompany($company) : null;
+        $domain = parse_url((string) $request->input('normalized_url'), PHP_URL_HOST);
+        $project = ($company && $workspace && $domain)
+            ? $workspaceBuilder->ensureProjectForDomain($company, $workspace, strtolower($domain))
+            : null;
 
         $scan = Scan::query()->create([
-            'company_id' => $request->user()?->company_id,
+            'company_id' => $company?->id,
+            'user_id' => $request->user()?->id,
+            'workspace_id' => $workspace?->id,
+            'project_id' => $project?->id,
             'url' => $request->input('original_url', $request->validated('url')),
             'normalized_url' => $request->input('normalized_url'),
+            'normalized_domain' => $domain ? strtolower($domain) : null,
             'scan_mode' => 'keyword_focus',
             'target_keywords' => $keywords,
             'status' => 'pending',
