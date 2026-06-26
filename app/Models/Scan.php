@@ -59,6 +59,11 @@ class Scan extends Model
         return $this->hasOne(ScanResult::class);
     }
 
+    public function legacySnapshot(): HasOne
+    {
+        return $this->hasOne(LegacyReportSnapshot::class);
+    }
+
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class);
