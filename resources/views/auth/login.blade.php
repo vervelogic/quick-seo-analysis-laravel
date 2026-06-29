@@ -10,7 +10,27 @@
             <form method="POST" action="{{ route('login.store') }}" class="rounded-3xl bg-white p-6 shadow-2xl shadow-blue-950/30 sm:p-8">
                 @csrf
                 <h2 class="text-2xl font-black tracking-tight">Sign in</h2>
-                <p class="mt-2 text-sm text-slate-500">Use your company workspace credentials.</p>
+                <p class="mt-2 text-sm text-slate-500">Use your company workspace credentials or continue with Google.</p>
+
+                @if (session('status'))
+                    <div class="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+                        {{ session('status') }}
+                    </div>
+                @endif
+
+                <a
+                    href="{{ route('auth.google.redirect') }}"
+                    class="mt-6 flex w-full items-center justify-center gap-3 rounded-xl border border-slate-300 px-5 py-4 text-base font-black text-slate-800 transition hover:border-slate-400 hover:bg-slate-50"
+                >
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-black">G</span>
+                    Continue with Google
+                </a>
+
+                <div class="mt-6 flex items-center gap-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                    <span class="h-px flex-1 bg-slate-200"></span>
+                    Or use email login
+                    <span class="h-px flex-1 bg-slate-200"></span>
+                </div>
 
                 <div class="mt-6 space-y-5">
                     <label class="block">
