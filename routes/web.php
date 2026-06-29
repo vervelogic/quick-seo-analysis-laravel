@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\KeywordFocusAuditController;
 use App\Http\Controllers\KeywordFocusReportSectionController;
 use App\Http\Controllers\LeadCaptureController;
@@ -16,6 +17,8 @@ Route::get('/', fn () => view('home.index'))->name('home');
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [ClientAuthController::class, 'create'])->name('login');
     Route::post('/login', [ClientAuthController::class, 'store'])->name('login.store');
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google.redirect');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
 });
 
 Route::post('/logout', [ClientAuthController::class, 'destroy'])->middleware('auth')->name('logout');
