@@ -2,16 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Company;
 use App\Models\LegacyAccount;
-use App\Models\Scan;
 use App\Models\User;
-use App\Services\Legacy\LegacyWorkspaceBuilder;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class PrepareLegacyAccountsCommand extends Command
 {
@@ -20,26 +14,22 @@ class PrepareLegacyAccountsCommand extends Command
         {--dry-run : Preview without writing data}
         {--limit=0 : Optional maximum number of accounts to process}';
 
-    protected $description = 'Create pending-claim SaaS users, companies, workspaces and domain projects for legitimate legacy QSA accounts.';
+    protected $description = 'Create or refresh pending legacy account records without creating active SaaS users, companies, workspaces or projects.';
 
     private const SOURCE = 'dotnet_qsa';
 
     private array $summary = [
-        'users_found' => 0,
-        'scan_linked_users' => 0,
-        'skipped_invalid_or_spam' => 0,
-        'pending_accounts_created' => 0,
-        'existing_accounts_skipped' => 0,
-        'companies_created' => 0,
-        'workspaces_created_or_matched' => 0,
-        'scans_attached' => 0,
-        'projects_created_or_matched' => 0,
+        'legacy_users_found' => 0,
+        'scan_linked_legacy_accounts' => 0,
+        'invalid_or_spam_skipped' => 0,
+        'duplicate_email_rows' => 0,
+        'duplicate_client_ids' => 0,
+        'legacy_accounts_to_create' => 0,
+        'legacy_accounts_to_update' => 0,
+        'legacy_accounts_created' => 0,
+        'legacy_accounts_updated' => 0,
+        'existing_prepared_users_detected' => 0,
     ];
-
-    public function __construct(private readonly LegacyWorkspaceBuilder $workspaceBuilder)
-    {
-        parent::__construct();
-    }
 
     public function handle(): int
     {
@@ -65,53 +55,75 @@ class PrepareLegacyAccountsCommand extends Command
         $users = $this->readCsv($usersFile);
         $scans = $this->readCsv($scansFile);
         $scanStats = $this->scanStats($scans);
-        $processed = 0;
-        $previewRows = [];
-
-        $this->summary['users_found'] = count($users);
-        $this->summary['scan_linked_users'] = count($scanStats);
-
-        foreach ($users as $row) {
+        $legacyIdCounts = $this->countBy($users, 'ID');
+        $scanLinkedRows = array_values(array_filter($users, function (array $row) use ($scanStats): bool {
             $legacyId = $this->value($row, 'ID');
 
-            if ($legacyId === '' || ! isset($scanStats[$legacyId])) {
-                continue;
-            }
+            return $legacyId !== '' && isset($scanStats[$legacyId]);
+        }));
+        $emailCounts = $this->countBy($scanLinkedRows, 'Email', true);
+        $previewRows = [];
+        $processed = 0;
 
+        $this->summary['legacy_users_found'] = count($users);
+        $this->summary['scan_linked_legacy_accounts'] = count($scanStats);
+        $this->summary['duplicate_client_ids'] = count(array_filter($legacyIdCounts, fn (int $count): bool => $count > 1));
+        $this->summary['duplicate_email_rows'] = count(array_filter($scanLinkedRows, function (array $row) use ($emailCounts): bool {
+            $email = strtolower($this->value($row, 'Email'));
+
+            return $email !== '' && (($emailCounts[$email] ?? 0) > 1);
+        }));
+        $this->summary['existing_prepared_users_detected'] = User::query()->where('legacy_source', self::SOURCE)->count();
+
+        foreach ($scanLinkedRows as $row) {
+            $legacyId = $this->value($row, 'ID');
             $email = strtolower($this->value($row, 'Email'));
             $name = $this->legacyName($row, $legacyId);
             $skipReason = $this->skipReason($name, $email);
 
             if ($skipReason !== null) {
-                $this->summary['skipped_invalid_or_spam']++;
+                $this->summary['invalid_or_spam_skipped']++;
                 continue;
             }
 
-            if (LegacyAccount::query()->where('legacy_source', self::SOURCE)->where('legacy_id', $legacyId)->exists()) {
-                $this->summary['existing_accounts_skipped']++;
-                continue;
-            }
+            $existing = LegacyAccount::query()
+                ->where('legacy_source', self::SOURCE)
+                ->where('legacy_id', $legacyId)
+                ->first();
 
-            $processed++;
+            $action = $existing ? 'update' : 'create';
+            $reasonIncluded = 'Scan-linked legacy account ready for claim.';
 
             $previewRows[] = [
                 $legacyId,
                 $name,
                 $email,
+                $this->value($row, 'LoginProvider') ?: 'N/A',
                 $scanStats[$legacyId]['scan_count'],
                 $scanStats[$legacyId]['report_count'],
                 $scanStats[$legacyId]['last_activity_at']?->timezone(config('app.timezone'))->format('d M Y, h:i A').' IST',
-                'pending_claim',
+                $this->safeLegacyFilename($this->value($row, 'CompanyLogo')) ? 'Yes' : 'No',
+                $action,
+                $reasonIncluded,
             ];
 
-            if (! $dryRun) {
-                $result = $this->createPendingAccount($row, $legacyId, $name, $email, $scanStats[$legacyId]);
-                $this->summary['companies_created'] += $result['company_created'] ? 1 : 0;
-                $this->summary['workspaces_created_or_matched']++;
-                $this->summary['scans_attached'] += $result['scans_attached'];
-                $this->summary['projects_created_or_matched'] += $result['projects_created_or_matched'];
-                $this->summary['pending_accounts_created']++;
+            if ($existing) {
+                $this->summary['legacy_accounts_to_update']++;
+            } else {
+                $this->summary['legacy_accounts_to_create']++;
             }
+
+            if (! $dryRun) {
+                $this->syncLegacyAccount($row, $legacyId, $name, $email, $scanStats[$legacyId], $existing, ($emailCounts[$email] ?? 0) > 1);
+
+                if ($existing) {
+                    $this->summary['legacy_accounts_updated']++;
+                } else {
+                    $this->summary['legacy_accounts_created']++;
+                }
+            }
+
+            $processed++;
 
             if ($limit > 0 && $processed >= $limit) {
                 break;
@@ -119,103 +131,73 @@ class PrepareLegacyAccountsCommand extends Command
         }
 
         if ($dryRun) {
-            $this->warn('Dry-run only. No users, companies, workspaces, projects or scan links were changed.');
+            $this->warn('Dry-run only. No users, companies, workspaces, projects or scan ownership links were changed.');
         }
 
         if ($previewRows !== []) {
-            $this->table(['Legacy ID', 'Name', 'Email', 'Scans', 'Reports', 'Last Activity', 'Claim Status'], array_slice($previewRows, 0, 30));
+            $this->table(
+                ['Legacy ID', 'Name', 'Email', 'Login Provider', 'Scans', 'Reports', 'Last Activity', 'Company Logo', 'Action', 'Reason Included'],
+                array_slice($previewRows, 0, 30)
+            );
         }
 
-        if ($dryRun) {
-            $this->summary['pending_accounts_created'] = count($previewRows);
+        if ($this->summary['existing_prepared_users_detected'] > 0) {
+            $this->warn('Previously prepared active SaaS users were detected from an earlier run. This command does not delete them. Review them manually before any cleanup.');
         }
 
-        $this->table(['Metric', 'Count'], collect($this->summary)->map(fn ($count, $metric) => [str_replace('_', ' ', $metric), $count])->values()->all());
+        $this->table(
+            ['Metric', 'Count'],
+            collect($this->summary)->map(fn ($count, $metric) => [str_replace('_', ' ', $metric), $count])->values()->all()
+        );
 
         return self::SUCCESS;
     }
 
-    private function createPendingAccount(array $row, string $legacyId, string $name, string $email, array $scanStats): array
-    {
-        return DB::transaction(function () use ($row, $legacyId, $name, $email, $scanStats): array {
-            $companyCreated = false;
-            $company = Company::query()->where('domain', $this->domainFromEmail($email))->first();
+    private function syncLegacyAccount(
+        array $row,
+        string $legacyId,
+        string $name,
+        string $email,
+        array $scanStats,
+        ?LegacyAccount $existing,
+        bool $duplicateEmail
+    ): void {
+        $registeredAt = $this->dateValue($row, 'AddedOn');
+        $metadata = [
+            'source' => 'csv_upgrade_preparation',
+            'claim_message' => 'We found your previous Quick SEO Analysis account.',
+            'legacy_login_provider' => $this->cleanNullableText($this->value($row, 'LoginProvider')),
+            'legacy_phone' => $this->cleanNullableText($this->value($row, 'Phone')),
+            'legacy_username' => $this->cleanNullableText($this->value($row, 'UserName')),
+            'legacy_company_logo' => $this->safeLegacyFilename($this->value($row, 'CompanyLogo')),
+            'legacy_pdf_logo' => $this->safeLegacyFilename($this->value($row, 'logopinpdf')),
+            'legacy_company_description' => $this->cleanNullableText($this->value($row, 'CompanyDescription')),
+            'email_domain' => $this->domainFromEmail($email),
+            'duplicate_email_in_source' => $duplicateEmail,
+            'source_added_on' => $this->cleanNullableText($this->value($row, 'AddedOn')),
+        ];
 
-            if (! $company) {
-                $company = Company::create([
-                    'name' => $this->companyName($name, $email),
-                    'slug' => 'legacy-dotnet-'.$legacyId,
-                    'domain' => $this->domainFromEmail($email),
-                    'contact_name' => $name,
-                    'contact_email' => $email,
-                    'legacy_company_logo' => $this->safeLegacyFilename($this->value($row, 'CompanyLogo')),
-                    'legacy_pdf_logo' => $this->safeLegacyFilename($this->value($row, 'logopinpdf')),
-                    'legacy_company_description' => $this->cleanNullableText($this->value($row, 'CompanyDescription')),
-                    'legacy_metadata' => [
-                        'legacy_user_id' => $legacyId,
-                        'phone' => $this->value($row, 'Phone'),
-                        'login_provider' => $this->value($row, 'LoginProvider'),
-                    ],
-                    'created_at' => $this->dateValue($row, 'AddedOn') ?: now(),
-                    'updated_at' => now(),
-                ]);
-                $companyCreated = true;
-            }
+        $payload = [
+            'legacy_source' => self::SOURCE,
+            'legacy_id' => $legacyId,
+            'name' => $name,
+            'email' => $email,
+            'status' => $existing?->isClaimed() ? LegacyAccount::STATUS_CLAIMED : LegacyAccount::STATUS_PENDING_CLAIM,
+            'scan_count' => $scanStats['scan_count'],
+            'report_count' => $scanStats['report_count'],
+            'registered_at' => $registeredAt,
+            'last_activity_at' => $scanStats['last_activity_at'],
+            'metadata' => $metadata,
+        ];
 
-            $workspace = $this->workspaceBuilder->ensureWorkspaceForCompany($company);
-            $user = User::query()->where('email', $email)->first();
+        if ($existing) {
+            $existing->fill($payload);
+            $existing->save();
 
-            if (! $user) {
-                $user = User::create([
-                    'company_id' => $company->id,
-                    'name' => $name,
-                    'email' => $email,
-                    'password' => Hash::make(Str::random(80)),
-                    'role' => 'client',
-                    'company_role' => User::COMPANY_ROLE_OWNER,
-                    'is_admin' => false,
-                    'email_verified_at' => null,
-                    'legacy_id' => $legacyId,
-                    'legacy_source' => self::SOURCE,
-                    'legacy_imported_at' => now(),
-                    'legacy_login_provider' => $this->cleanNullableText($this->value($row, 'LoginProvider')),
-                    'invite_required' => true,
-                    'legacy_metadata' => [
-                        'pending_claim' => true,
-                        'legacy_registration_date' => $this->value($row, 'AddedOn'),
-                    ],
-                    'created_at' => $this->dateValue($row, 'AddedOn') ?: now(),
-                    'updated_at' => now(),
-                ]);
-            }
+            return;
+        }
 
-            $legacyAccount = LegacyAccount::create([
-                'user_id' => $user->id,
-                'company_id' => $company->id,
-                'workspace_id' => $workspace->id,
-                'legacy_source' => self::SOURCE,
-                'legacy_id' => $legacyId,
-                'name' => $name,
-                'email' => $email,
-                'status' => LegacyAccount::STATUS_PENDING_CLAIM,
-                'scan_count' => $scanStats['scan_count'],
-                'report_count' => $scanStats['report_count'],
-                'registered_at' => $this->dateValue($row, 'AddedOn'),
-                'last_activity_at' => $scanStats['last_activity_at'],
-                'metadata' => [
-                    'source' => 'csv_upgrade_preparation',
-                    'claim_message' => 'We found your previous Quick SEO Analysis account.',
-                ],
-            ]);
-
-            $attached = $this->workspaceBuilder->attachHistoricalAssets($legacyAccount->fresh(['company', 'workspace']));
-
-            return [
-                'company_created' => $companyCreated,
-                'scans_attached' => $attached['scans_attached'],
-                'projects_created_or_matched' => $attached['projects_created_or_matched'],
-            ];
-        });
+        LegacyAccount::create($payload);
     }
 
     private function scanStats(array $scans): array
@@ -269,6 +251,27 @@ class PrepareLegacyAccountsCommand extends Command
         return $rows;
     }
 
+    private function countBy(array $rows, string $key, bool $lowercase = false): array
+    {
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $value = $this->value($row, $key);
+
+            if ($value === '') {
+                continue;
+            }
+
+            if ($lowercase) {
+                $value = strtolower($value);
+            }
+
+            $counts[$value] = ($counts[$value] ?? 0) + 1;
+        }
+
+        return $counts;
+    }
+
     private function skipReason(string $name, string $email): ?string
     {
         if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
@@ -306,16 +309,9 @@ class PrepareLegacyAccountsCommand extends Command
         return trim((string) ($row[$key] ?? ''));
     }
 
-    private function companyName(string $name, string $email): string
-    {
-        $domain = $this->domainFromEmail($email);
-
-        return $domain ? Str::headline(Str::beforeLast($domain, '.')) : $name;
-    }
-
     private function domainFromEmail(string $email): ?string
     {
-        return str_contains($email, '@') ? strtolower(Str::after($email, '@')) : null;
+        return str_contains($email, '@') ? strtolower(substr(strrchr($email, '@'), 1)) : null;
     }
 
     private function safeLegacyFilename(string $filename): ?string
