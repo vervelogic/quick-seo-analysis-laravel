@@ -128,10 +128,15 @@ class LegacyWorkspaceBuilder
 
             $legacyAccount->forceFill([
                 'user_id' => $user->id,
+                'claimed_by_user_id' => $user->id,
                 'company_id' => $company->id,
                 'workspace_id' => $workspace->id,
                 'status' => LegacyAccount::STATUS_CLAIMED,
                 'claimed_at' => now(),
+                'metadata' => array_merge($legacyAccount->metadata ?? [], [
+                    'claimed_via' => 'authenticated_user',
+                    'claimed_email' => $user->email,
+                ]),
             ])->save();
 
             return $this->attachHistoricalAssets($legacyAccount->fresh(['company', 'workspace']));
