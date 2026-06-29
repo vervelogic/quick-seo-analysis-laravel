@@ -29,6 +29,8 @@ class PrepareLegacyAccountsCommand extends Command
         'legacy_accounts_created' => 0,
         'legacy_accounts_updated' => 0,
         'existing_prepared_users_detected' => 0,
+        'legacy_text_sanitized' => 0,
+        'fallback_names_used' => 0,
     ];
 
     public function handle(): int
@@ -69,7 +71,7 @@ class PrepareLegacyAccountsCommand extends Command
         $this->summary['scan_linked_legacy_accounts'] = count($scanStats);
         $this->summary['duplicate_client_ids'] = count(array_filter($legacyIdCounts, fn (int $count): bool => $count > 1));
         $this->summary['duplicate_email_rows'] = count(array_filter($scanLinkedRows, function (array $row) use ($emailCounts): bool {
-            $email = strtolower($this->value($row, 'Email'));
+            $email = strtolower($this->normalizedEmail($this->value($row, 'Email')));
 
             return $email !== '' && (($emailCounts[$email] ?? 0) > 1);
         }));
@@ -77,13 +79,18 @@ class PrepareLegacyAccountsCommand extends Command
 
         foreach ($scanLinkedRows as $row) {
             $legacyId = $this->value($row, 'ID');
-            $email = strtolower($this->value($row, 'Email'));
-            $name = $this->legacyName($row, $legacyId);
+            $email = $this->normalizedEmail($this->value($row, 'Email'));
+            $fallbackNameUsed = false;
+            $name = $this->legacyName($row, $legacyId, $fallbackNameUsed);
             $skipReason = $this->skipReason($name, $email);
 
             if ($skipReason !== null) {
                 $this->summary['invalid_or_spam_skipped']++;
                 continue;
+            }
+
+            if ($fallbackNameUsed) {
+                $this->summary['fallback_names_used']++;
             }
 
             $existing = LegacyAccount::query()
@@ -93,12 +100,13 @@ class PrepareLegacyAccountsCommand extends Command
 
             $action = $existing ? 'update' : 'create';
             $reasonIncluded = 'Scan-linked legacy account ready for claim.';
+            $loginProvider = $this->cleanNullableText($this->value($row, 'LoginProvider')) ?: 'N/A';
 
             $previewRows[] = [
                 $legacyId,
                 $name,
                 $email,
-                $this->value($row, 'LoginProvider') ?: 'N/A',
+                $loginProvider,
                 $scanStats[$legacyId]['scan_count'],
                 $scanStats[$legacyId]['report_count'],
                 $scanStats[$legacyId]['last_activity_at']?->timezone(config('app.timezone'))->format('d M Y, h:i A').' IST',
@@ -258,12 +266,12 @@ class PrepareLegacyAccountsCommand extends Command
         foreach ($rows as $row) {
             $value = $this->value($row, $key);
 
-            if ($value === '') {
-                continue;
+            if ($lowercase) {
+                $value = $this->normalizedEmail($value);
             }
 
-            if ($lowercase) {
-                $value = strtolower($value);
+            if ($value === '') {
+                continue;
             }
 
             $counts[$value] = ($counts[$value] ?? 0) + 1;
@@ -297,11 +305,18 @@ class PrepareLegacyAccountsCommand extends Command
         return null;
     }
 
-    private function legacyName(array $row, string $legacyId): string
+    private function legacyName(array $row, string $legacyId, bool &$fallbackUsed = false): string
     {
-        $name = $this->value($row, 'Name') ?: $this->value($row, 'UserName');
+        $candidate = $this->cleanNullableText($this->value($row, 'Name'))
+            ?? $this->cleanNullableText($this->value($row, 'UserName'));
 
-        return in_array(strtolower($name), ['', 'null', 'n/a', 'na'], true) ? 'Legacy User '.$legacyId : $name;
+        if ($candidate === null || in_array(strtolower($candidate), ['null', 'n/a', 'na'], true)) {
+            $fallbackUsed = true;
+
+            return 'Legacy User '.$legacyId;
+        }
+
+        return $candidate;
     }
 
     private function value(array $row, string $key): string
@@ -316,24 +331,68 @@ class PrepareLegacyAccountsCommand extends Command
 
     private function safeLegacyFilename(string $filename): ?string
     {
-        $basename = basename(str_replace('\\', '/', trim($filename)));
+        $filename = $this->cleanNullableText($filename);
+
+        if ($filename === null) {
+            return null;
+        }
+
+        $basename = basename(str_replace('\\', '/', $filename));
         $extension = strtolower(pathinfo($basename, PATHINFO_EXTENSION));
 
         return in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true) ? $basename : null;
+    }
+
+    private function normalizedEmail(string $value): string
+    {
+        $cleaned = $this->cleanNullableText($value);
+
+        return $cleaned === null ? '' : strtolower($cleaned);
     }
 
     private function cleanNullableText(string $value): ?string
     {
         $value = trim($value);
 
-        return $value === '' ? null : $value;
+        if ($value === '') {
+            return null;
+        }
+
+        $original = $value;
+
+        if (function_exists('mb_check_encoding') && ! mb_check_encoding($value, 'UTF-8')) {
+            $converted = @mb_convert_encoding($value, 'UTF-8', 'UTF-8, Windows-1252, ISO-8859-1, ASCII');
+            if (is_string($converted) && $converted !== '') {
+                $value = $converted;
+            }
+        }
+
+        if (function_exists('iconv')) {
+            $converted = @iconv('UTF-8', 'UTF-8//IGNORE', $value);
+            if (is_string($converted) && $converted !== '') {
+                $value = $converted;
+            }
+        }
+
+        $value = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]+/u', '', $value) ?? '';
+        $value = trim(preg_replace('/\s+/u', ' ', $value) ?? '');
+
+        if ($value === '') {
+            return null;
+        }
+
+        if ($value !== $original) {
+            $this->summary['legacy_text_sanitized']++;
+        }
+
+        return $value;
     }
 
     private function dateValue(array $row, string $key): ?Carbon
     {
-        $value = $this->value($row, $key);
+        $value = $this->cleanNullableText($this->value($row, $key));
 
-        if ($value === '') {
+        if ($value === null) {
             return null;
         }
 
