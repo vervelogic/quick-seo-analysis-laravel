@@ -18,7 +18,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('users', function (Blueprint $table): void {
-            $table->dropUnique(['google_id']);
+            $table->dropUnique('users_google_id_unique');
             $table->dropColumn(['google_id', 'auth_provider', 'avatar_url']);
         });
     }
