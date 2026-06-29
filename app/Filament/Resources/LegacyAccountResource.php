@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\LegacyAccountResource\Pages;
+use App\Filament\Resources\LegacyAccountResource\RelationManagers\ScansRelationManager;
 use App\Models\LegacyAccount;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -46,6 +47,10 @@ class LegacyAccountResource extends Resource
                 ]),
             ])
             ->actions([
+                Tables\Actions\Action::make('view_scans')
+                    ->label('View Scans')
+                    ->icon('heroicon-o-globe-alt')
+                    ->url(fn (LegacyAccount $record): string => static::getUrl('view', ['record' => $record])),
                 Tables\Actions\ViewAction::make(),
             ]);
     }
@@ -76,6 +81,13 @@ class LegacyAccountResource extends Resource
                 ])
                 ->columns(3),
         ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            ScansRelationManager::class,
+        ];
     }
 
     public static function getPages(): array
