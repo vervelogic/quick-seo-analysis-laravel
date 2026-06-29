@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LegacyAccount extends Model
 {
@@ -56,6 +57,11 @@ class LegacyAccount extends Model
     public function workspace(): BelongsTo
     {
         return $this->belongsTo(Workspace::class);
+    }
+
+    public function scans(): HasMany
+    {
+        return $this->hasMany(Scan::class, 'legacy_client_id', 'legacy_id');
     }
 
     public function isPendingClaim(): bool
