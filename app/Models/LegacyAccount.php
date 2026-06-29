@@ -15,6 +15,7 @@ class LegacyAccount extends Model
 
     protected $fillable = [
         'user_id',
+        'claimed_by_user_id',
         'company_id',
         'workspace_id',
         'legacy_source',
@@ -40,6 +41,11 @@ class LegacyAccount extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function claimedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'claimed_by_user_id');
     }
 
     public function company(): BelongsTo
