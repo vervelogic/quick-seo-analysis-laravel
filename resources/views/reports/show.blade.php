@@ -174,6 +174,16 @@
             </div>
 
             <aside class="space-y-6 lg:sticky lg:top-6 lg:h-fit">
+                <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                    <p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Full PDF Report</p>
+                    <h2 class="mt-1 text-xl font-black tracking-tight text-slate-950">Download the printable version</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">{{ auth()->check() ? 'Download a clean PDF version of this visibility report.' : 'Create a free account to download this full PDF report and keep access to it later.' }}</p>
+                    <a href="{{ route('report.pdf', ['scan' => $scan->uuid]) }}" class="mt-4 inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800">{{ auth()->check() ? 'Download full PDF report' : 'Login to download full PDF report' }}</a>
+                    @guest
+                        <p class="mt-3 text-xs font-medium text-slate-500">You can preview the report first. Login is only required for the downloadable PDF.</p>
+                    @endguest
+                </section>
+
                 <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div class="flex items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Website Preview</p><h2 class="mt-1 break-words text-xl font-black tracking-tight text-slate-950">{{ $host }}</h2></div><span class="rounded-full px-3 py-1 text-xs font-bold ring-1 {{ $usesHttps ? 'bg-teal-50 text-teal-800 ring-teal-100' : 'bg-amber-50 text-amber-800 ring-amber-100' }}">{{ strtoupper($scheme) }}</span></div><div class="mt-5 overflow-hidden rounded-lg border border-slate-200 bg-slate-950"><div class="flex gap-1 border-b border-white/10 bg-slate-900 px-4 py-3"><span class="h-2.5 w-2.5 rounded-full bg-red-400"></span><span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span><span class="h-2.5 w-2.5 rounded-full bg-teal-400"></span></div><div class="bg-white p-5"><p class="break-words text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Scanned URL</p><p class="mt-2 break-words text-sm font-bold text-slate-950">{{ $effectiveUrl }}</p><div class="mt-5 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200"><p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Page title</p><p class="mt-2 break-words text-sm font-black leading-6 text-slate-950">{{ filled($pageTitle) ? $pageTitle : ($scanFailed ? 'Unavailable because the page could not be fetched' : 'No title detected') }}</p></div><div class="mt-3 rounded-lg bg-slate-50 p-4 ring-1 ring-slate-200"><p class="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Meta description</p><p class="mt-2 break-words text-sm leading-6 text-slate-700">{{ filled($metaDescription) ? $metaDescription : ($scanFailed ? 'Unavailable because the page could not be fetched' : 'No meta description detected') }}</p></div></div></div>@if ($requestedUrl !== $effectiveUrl)<p class="mt-3 break-words text-xs font-medium text-slate-500">Requested: {{ $requestedUrl }}</p>@endif</section>
             </aside>
         </div>
