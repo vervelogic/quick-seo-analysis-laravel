@@ -7,6 +7,7 @@ use App\Http\Controllers\KeywordFocusAuditController;
 use App\Http\Controllers\KeywordFocusReportSectionController;
 use App\Http\Controllers\LeadCaptureController;
 use App\Http\Controllers\LegacyAccountClaimController;
+use App\Http\Controllers\PublicReportPdfController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\WhiteLabelReportController;
@@ -35,6 +36,7 @@ Route::middleware('auth')->group(function (): void {
     Route::patch('/dashboard/branding', [DashboardController::class, 'updateBranding'])->name('dashboard.branding.update');
     Route::get('/dashboard/usage', [DashboardController::class, 'usage'])->name('dashboard.usage');
     Route::post('/dashboard/legacy-accounts/{legacyAccount}/claim', LegacyAccountClaimController::class)->name('dashboard.legacy-accounts.claim');
+    Route::get('/report/{scan:uuid}/pdf', [PublicReportPdfController::class, 'show'])->name('report.pdf');
 });
 
 Route::post('/scan', ScanController::class)->middleware('throttle:scan')->name('scan.store');
