@@ -23,6 +23,13 @@ class PublicScanAbuseProtectionTest extends TestCase
         config()->set('qsa.authenticated_scan_rate_limit_per_minute', 100);
     }
 
+    protected function tearDown(): void
+    {
+        Mockery::close();
+
+        parent::tearDown();
+    }
+
     public function test_duplicate_scan_cooldown_blocks_repeat_anonymous_scan_for_same_url(): void
     {
         config()->set('qsa.public_scan_abuse.daily_anonymous_quota', 10);
