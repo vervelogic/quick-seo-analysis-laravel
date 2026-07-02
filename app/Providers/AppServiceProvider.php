@@ -19,8 +19,20 @@ class AppServiceProvider extends ServiceProvider
         date_default_timezone_set(config('app.timezone', 'Asia/Kolkata'));
 
         RateLimiter::for('scan', function (Request $request) {
-            return Limit::perMinute((int) config('qsa.scan_rate_limit_per_minute', 6))
-                ->by($request->ip());
+            $isAuthenticated = $request->user() !== null;
+            $limit = $isAuthenticated
+                ? (int) config('qsa.authenticated_scan_rate_limit_per_minute', 20)
+                : (int) config('qsa.scan_rate_limit_per_minute', 6);
+
+            return Limit::perMinute($limit)
+                ->by($isAuthenticated ? 'user:'.$request->user()->id : 'ip:'.$request->ip())
+                ->response(function () {
+                    return back()
+                        ->withInput()
+                        ->withErrors([
+                            'url' => 'Too many scan attempts were received from this connection. Please wait a minute and try again, or sign in to continue.',
+                        ]);
+                });
         });
 
         RateLimiter::for('lead-capture', function (Request $request) {
