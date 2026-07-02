@@ -142,7 +142,7 @@
 </head>
 <body>
     <div class="toolbar">
-        <a href="{{ route('dashboard.reports') }}">Back to reports</a>
+        <a href="{{ $backUrl ?? route('dashboard.reports') }}">Back to reports</a>
         <button type="button" onclick="window.print()">Download / Save PDF</button>
     </div>
 
