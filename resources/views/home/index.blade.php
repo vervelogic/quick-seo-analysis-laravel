@@ -127,6 +127,7 @@
                             <button data-scan-button class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Run Free Visibility Scan</button>
                         </div>
                         <p class="text-xs font-medium text-slate-500">You can enter example.com, https://example.com, or http://example.com.</p>
+                        <p class="text-xs font-medium text-slate-500">Free scans include anonymous limits to stop abuse. If you hit a protection step, sign in to continue.</p>
                         <p class="text-xs font-black text-teal-700">✓ No credit card required. No signup.</p>
                         @error('url')
                             <p class="text-sm font-medium text-red-600">{{ $message }}</p>
