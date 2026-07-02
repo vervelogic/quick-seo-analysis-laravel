@@ -62,7 +62,10 @@
                         @enderror
                     </div>
 
-                    <button data-keyword-focus-button class="qsa-keyword-button inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Check Keyword Alignment</button>
+                    <div class="space-y-2">
+                        <button data-keyword-focus-button class="qsa-keyword-button inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Check Keyword Alignment</button>
+                        <p class="text-xs font-medium text-slate-500">Free anonymous audits include protection limits to stop repeated abuse. If you hit a protection step, sign in to continue.</p>
+                    </div>
                 </form>
             </div>
         </div>
