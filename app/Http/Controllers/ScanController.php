@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreScanRequest;
 use App\Models\Scan;
 use App\Services\Legacy\LegacyWorkspaceBuilder;
+use App\Services\Scans\ScanAbuseProtector;
 use App\Services\Scanner\SeoScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
 
 class ScanController
 {
-    public function __invoke(StoreScanRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder): RedirectResponse
+    public function __invoke(StoreScanRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder, ScanAbuseProtector $abuseProtector): RedirectResponse
     {
+        $abuseProtector->enforce($request, (string) $request->input('normalized_url'));
+
         $company = $request->user()?->company;
         $workspace = $company ? $workspaceBuilder->ensureWorkspaceForCompany($company) : null;
         $domain = parse_url((string) $request->input('normalized_url'), PHP_URL_HOST);
