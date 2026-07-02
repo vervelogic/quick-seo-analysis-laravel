@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreKeywordFocusAuditRequest;
 use App\Models\Scan;
 use App\Services\Legacy\LegacyWorkspaceBuilder;
+use App\Services\Scans\ScanAbuseProtector;
 use App\Services\Scanner\SeoScanner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Log;
@@ -17,8 +18,10 @@ class KeywordFocusAuditController
         return view('keyword-focus.create');
     }
 
-    public function store(StoreKeywordFocusAuditRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder): RedirectResponse
+    public function store(StoreKeywordFocusAuditRequest $request, SeoScanner $scanner, LegacyWorkspaceBuilder $workspaceBuilder, ScanAbuseProtector $abuseProtector): RedirectResponse
     {
+        $abuseProtector->enforce($request, (string) $request->input('normalized_url'));
+
         $keywords = $request->validated('target_keywords');
         $company = $request->user()?->company;
         $workspace = $company ? $workspaceBuilder->ensureWorkspaceForCompany($company) : null;
