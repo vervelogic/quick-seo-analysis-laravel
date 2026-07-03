@@ -1,10 +1,197 @@
+@props([
+    'title' => config('app.name'),
+    'meta' => [],
+    'structuredData' => [],
+])
+
+@php
+    $isHomeRoute = request()->routeIs('home');
+    $homeUrl = route('home');
+    $homeSocialImage = asset('images/social/home-share-card.svg');
+
+    $homeSeoMeta = $isHomeRoute ? [
+        'title' => 'SEO Checker With Free Audit Report-Quick SEO Analysis',
+        'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
+        'keywords' => 'Seo Audit, Seo Checker, Seo Tools, Seo Optimizer, Seo Analyzer, Quick Seo Analysis, Free Audit Report,Quick SEO Analysis, Website SEO Checker',
+        'robots' => 'index,archive,follow',
+        'canonical' => $homeUrl,
+        'language' => 'en-US',
+        'author' => 'quickseoanalysis',
+        'application_name' => 'quickseoanalysis',
+        'theme_color' => '#020617',
+        'favicon' => asset('favicon.png'),
+        'open_graph' => [
+            'title' => 'SEO Checker With Free Audit Report-Quick SEO Analysis',
+            'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
+            'url' => $homeUrl,
+            'type' => 'website',
+            'image' => $homeSocialImage,
+            'site_name' => 'Quick SEO Analysis',
+            'locale' => 'en_US',
+        ],
+        'twitter' => [
+            'card' => 'summary_large_image',
+            'title' => 'SEO Checker With Free Audit Report-Quick SEO Analysis',
+            'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
+            'image' => $homeSocialImage,
+        ],
+        'extra_meta' => [
+            ['name' => 'url', 'content' => $homeUrl],
+            ['name' => 'title', 'content' => 'SEO Checker With Free Audit Report-Quick SEO Analysis'],
+        ],
+        'alternates' => [
+            ['hreflang' => 'en', 'href' => $homeUrl],
+            ['hreflang' => 'x-default', 'href' => $homeUrl],
+        ],
+    ] : [];
+
+    $homeStructuredData = $isHomeRoute ? [
+        [
+            '@context' => 'https://schema.org',
+            '@type' => 'Organization',
+            'name' => 'Quick SEO Analysis',
+            'url' => $homeUrl,
+            'logo' => asset('favicon.png'),
+        ],
+        [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => 'Quick SEO Analysis',
+            'url' => $homeUrl,
+            'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
+            'inLanguage' => 'en-US',
+        ],
+        [
+            '@context' => 'https://schema.org',
+            '@type' => 'SoftwareApplication',
+            'name' => 'Quick SEO Analysis',
+            'applicationCategory' => 'BusinessApplication',
+            'operatingSystem' => 'Web',
+            'url' => $homeUrl,
+            'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
+            'offers' => [
+                '@type' => 'Offer',
+                'price' => '0',
+                'priceCurrency' => 'USD',
+            ],
+        ],
+    ] : [];
+
+    $mergedMeta = array_replace_recursive($homeSeoMeta, $meta);
+    $mergedStructuredData = array_merge($homeStructuredData, $structuredData);
+
+    $resolvedTitle = $mergedMeta['title'] ?? $title ?? config('app.name');
+    $resolvedDescription = $mergedMeta['description'] ?? null;
+    $resolvedKeywords = $mergedMeta['keywords'] ?? null;
+    $resolvedRobots = $mergedMeta['robots'] ?? null;
+    $resolvedCanonical = $mergedMeta['canonical'] ?? null;
+    $resolvedCharset = $mergedMeta['charset'] ?? 'utf-8';
+    $resolvedViewport = $mergedMeta['viewport'] ?? 'width=device-width, initial-scale=1';
+    $resolvedLanguage = $mergedMeta['language'] ?? str_replace('_', '-', app()->getLocale());
+    $resolvedAuthor = $mergedMeta['author'] ?? null;
+    $resolvedApplicationName = $mergedMeta['application_name'] ?? config('app.name');
+    $resolvedThemeColor = $mergedMeta['theme_color'] ?? null;
+    $resolvedFavicon = $mergedMeta['favicon'] ?? asset('favicon.png');
+    $resolvedManifest = $mergedMeta['manifest'] ?? null;
+    $resolvedOg = array_merge([
+        'title' => $resolvedTitle,
+        'description' => $resolvedDescription,
+        'url' => $resolvedCanonical,
+        'type' => 'website',
+        'image' => null,
+        'site_name' => config('app.name'),
+        'locale' => 'en_US',
+    ], $mergedMeta['open_graph'] ?? []);
+    $resolvedTwitter = array_merge([
+        'card' => 'summary_large_image',
+        'title' => $resolvedOg['title'] ?? $resolvedTitle,
+        'description' => $resolvedOg['description'] ?? $resolvedDescription,
+        'image' => $resolvedOg['image'] ?? null,
+    ], $mergedMeta['twitter'] ?? []);
+    $resolvedAlternates = $mergedMeta['alternates'] ?? [];
+    $resolvedExtraMeta = $mergedMeta['extra_meta'] ?? [];
+@endphp
+
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ $resolvedLanguage }}">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="{{ $resolvedCharset }}">
+    <meta name="viewport" content="{{ $resolvedViewport }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? config('app.name') }}</title>
+    <title>{{ $resolvedTitle }}</title>
+    @if ($resolvedDescription)
+        <meta name="description" content="{{ $resolvedDescription }}">
+    @endif
+    @if ($resolvedKeywords)
+        <meta name="keywords" content="{{ $resolvedKeywords }}">
+    @endif
+    @if ($resolvedRobots)
+        <meta name="robots" content="{{ $resolvedRobots }}">
+    @endif
+    @if ($resolvedApplicationName)
+        <meta name="application-name" content="{{ $resolvedApplicationName }}">
+    @endif
+    @if ($resolvedAuthor)
+        <meta name="author" content="{{ $resolvedAuthor }}">
+    @endif
+    <meta name="language" content="{{ $resolvedLanguage }}">
+    @if ($resolvedThemeColor)
+        <meta name="theme-color" content="{{ $resolvedThemeColor }}">
+    @endif
+    @foreach ($resolvedExtraMeta as $extraMeta)
+        @if (! empty($extraMeta['name']) && array_key_exists('content', $extraMeta))
+            <meta name="{{ $extraMeta['name'] }}" content="{{ $extraMeta['content'] }}">
+        @elseif (! empty($extraMeta['property']) && array_key_exists('content', $extraMeta))
+            <meta property="{{ $extraMeta['property'] }}" content="{{ $extraMeta['content'] }}">
+        @elseif (! empty($extraMeta['http_equiv']) && array_key_exists('content', $extraMeta))
+            <meta http-equiv="{{ $extraMeta['http_equiv'] }}" content="{{ $extraMeta['content'] }}">
+        @endif
+    @endforeach
+    @if ($resolvedCanonical)
+        <link rel="canonical" href="{{ $resolvedCanonical }}">
+    @endif
+    <link rel="icon" type="image/png" href="{{ $resolvedFavicon }}">
+    @if ($resolvedManifest)
+        <link rel="manifest" href="{{ $resolvedManifest }}">
+    @endif
+    @foreach ($resolvedAlternates as $alternate)
+        @if (! empty($alternate['href']) && ! empty($alternate['hreflang']))
+            <link rel="alternate" hreflang="{{ $alternate['hreflang'] }}" href="{{ $alternate['href'] }}">
+        @endif
+    @endforeach
+    @if ($resolvedOg['title'])
+        <meta property="og:title" content="{{ $resolvedOg['title'] }}">
+    @endif
+    @if ($resolvedOg['description'])
+        <meta property="og:description" content="{{ $resolvedOg['description'] }}">
+    @endif
+    @if ($resolvedOg['url'])
+        <meta property="og:url" content="{{ $resolvedOg['url'] }}">
+    @endif
+    @if ($resolvedOg['type'])
+        <meta property="og:type" content="{{ $resolvedOg['type'] }}">
+    @endif
+    @if ($resolvedOg['image'])
+        <meta property="og:image" content="{{ $resolvedOg['image'] }}">
+    @endif
+    @if ($resolvedOg['site_name'])
+        <meta property="og:site_name" content="{{ $resolvedOg['site_name'] }}">
+    @endif
+    @if ($resolvedOg['locale'])
+        <meta property="og:locale" content="{{ $resolvedOg['locale'] }}">
+    @endif
+    @if ($resolvedTwitter['card'])
+        <meta name="twitter:card" content="{{ $resolvedTwitter['card'] }}">
+    @endif
+    @if ($resolvedTwitter['title'])
+        <meta name="twitter:title" content="{{ $resolvedTwitter['title'] }}">
+    @endif
+    @if ($resolvedTwitter['description'])
+        <meta name="twitter:description" content="{{ $resolvedTwitter['description'] }}">
+    @endif
+    @if ($resolvedTwitter['image'])
+        <meta name="twitter:image" content="{{ $resolvedTwitter['image'] }}">
+    @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         @media print {
@@ -50,6 +237,11 @@
             }
         }
     </style>
+    @foreach ($mergedStructuredData as $schema)
+        @if ($schema)
+            <script type="application/ld+json">{!! json_encode($schema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) !!}</script>
+        @endif
+    @endforeach
 </head>
 <body class="bg-white text-slate-950 antialiased">
     <header class="border-b border-slate-200 bg-white/90 backdrop-blur">
