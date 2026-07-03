@@ -37,7 +37,7 @@
         ];
     @endphp
 
-    <section id="scan" class="relative overflow-hidden bg-slate-950">
+    <section class="relative overflow-hidden bg-slate-950">
         <div class="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(20,184,166,.24),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(37,99,235,.24),transparent_32%),linear-gradient(135deg,#020617,#0f172a_48%,#082f49)]"></div>
         <div class="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.055)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.055)_1px,transparent_1px)] bg-[size:48px_48px]"></div>
 
@@ -69,6 +69,10 @@
                         </div>
                     @endforeach
                 </div>
+
+                <div class="mt-8">
+                    <a href="#audit-path" class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200">Choose Your Audit Path</a>
+                </div>
             </div>
 
             <div class="grid gap-5 lg:self-center">
@@ -99,46 +103,11 @@
                     </div>
                     <p class="mt-5 text-xs leading-5 text-slate-400">Industry benchmarks from StatCounter, SparkToro/Datos and public AI/search reports. Review periodically.</p>
                 </article>
-
-                <div class="relative overflow-hidden rounded-2xl border border-white/10 bg-white p-6 shadow-2xl shadow-blue-950/40 sm:p-7">
-                    <div data-scan-loading class="pointer-events-none absolute inset-0 z-10 hidden bg-white/95 p-6 backdrop-blur-sm sm:p-8">
-                        <div class="flex h-full min-h-80 flex-col justify-center">
-                            <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
-                                <div class="h-9 w-9 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
-                            </div>
-                            <div class="mx-auto mt-6 max-w-sm text-center">
-                                <h2 class="text-2xl font-black tracking-tight text-slate-950">Scanning your website...</h2>
-                                <p class="mt-3 text-sm leading-6 text-slate-600">Checking SEO, AI Visibility, GEO and AEO signals. This usually takes a few seconds.</p>
-                            </div>
-                            <div class="mx-auto mt-6 w-full max-w-sm overflow-hidden rounded-full bg-slate-100">
-                                <div class="h-2 w-2/3 animate-pulse rounded-full bg-blue-600"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <h2 class="text-2xl font-black tracking-tight text-slate-950">Run a free visibility audit</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Enter a domain, homepage, or landing page URL. The first scan runs instantly.</p>
-
-                    <form data-scan-form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
-                        @csrf
-                        <label for="url" class="block text-sm font-semibold text-slate-800">Website URL</label>
-                        <div class="flex flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
-                            <input id="url" name="url" value="{{ old('url') }}" placeholder="example.com" class="min-h-12 flex-1 rounded-lg border-slate-300 text-base shadow-sm focus:border-blue-600 focus:ring-blue-600" required>
-                            <button data-scan-button class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Run Free Visibility Scan</button>
-                        </div>
-                        <p class="text-xs font-medium text-slate-500">You can enter example.com, https://example.com, or http://example.com.</p>
-                        <p class="text-xs font-medium text-slate-500">Free scans include anonymous limits to stop abuse. If you hit a protection step, sign in to continue.</p>
-                        <p class="text-xs font-black text-teal-700">✓ No credit card required. No signup.</p>
-                        @error('url')
-                            <p class="text-sm font-medium text-red-600">{{ $message }}</p>
-                        @enderror
-                    </form>
-                </div>
             </div>
         </div>
     </section>
 
-    <section class="bg-white py-16 sm:py-20">
+    <section id="audit-path" class="bg-white py-16 sm:py-20">
         <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
             <div class="mx-auto max-w-3xl text-center">
                 <p class="text-sm font-bold uppercase tracking-[0.18em] text-blue-700">Choose Your Audit Path</p>
@@ -193,6 +162,51 @@
                     </div>
                     <a href="{{ route('keyword-focus.create') }}" class="mt-7 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-white px-6 font-black text-slate-950 shadow-sm transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-white/20 sm:w-auto">Start Keyword Focus Audit</a>
                 </article>
+            </div>
+        </div>
+    </section>
+
+    <section id="scan" class="bg-slate-50 py-16 sm:py-20">
+        <div class="mx-auto max-w-7xl px-5 sm:px-6 lg:px-8">
+            <div class="mx-auto max-w-3xl text-center">
+                <p class="text-sm font-bold uppercase tracking-[0.18em] text-teal-700">Run Your Scan</p>
+                <h2 class="mt-3 text-3xl font-black tracking-tight text-slate-950 sm:text-4xl">Enter a URL and generate your visibility report.</h2>
+                <p class="mt-4 text-base leading-7 text-slate-600">Scan a domain, homepage, or landing page URL to review search, AI visibility, GEO and AEO signals.</p>
+            </div>
+
+            <div class="relative mx-auto mt-10 max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/70 sm:p-8">
+                <div data-scan-loading class="pointer-events-none absolute inset-0 z-10 hidden bg-white/95 p-6 backdrop-blur-sm sm:p-8">
+                    <div class="flex h-full min-h-80 flex-col justify-center">
+                        <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50">
+                            <div class="h-9 w-9 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
+                        </div>
+                        <div class="mx-auto mt-6 max-w-sm text-center">
+                            <h2 class="text-2xl font-black tracking-tight text-slate-950">Scanning your website...</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">Checking SEO, AI Visibility, GEO and AEO signals. This usually takes a few seconds.</p>
+                        </div>
+                        <div class="mx-auto mt-6 w-full max-w-sm overflow-hidden rounded-full bg-slate-100">
+                            <div class="h-2 w-2/3 animate-pulse rounded-full bg-blue-600"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h2 class="text-2xl font-black tracking-tight text-slate-950">Run a free visibility audit</h2>
+                <p class="mt-2 text-sm leading-6 text-slate-600">Enter a domain, homepage, or landing page URL. The first scan runs instantly.</p>
+
+                <form data-scan-form method="POST" action="{{ route('scan.store') }}" class="mt-6 space-y-4">
+                    @csrf
+                    <label for="url" class="block text-sm font-semibold text-slate-800">Website URL</label>
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <input id="url" name="url" value="{{ old('url') }}" placeholder="example.com" class="min-h-12 flex-1 rounded-lg border-slate-300 text-base shadow-sm focus:border-blue-600 focus:ring-blue-600" required>
+                        <button data-scan-button class="qsa-scan-button inline-flex min-h-12 items-center justify-center rounded-lg bg-blue-600 px-6 font-bold text-white shadow-sm focus:outline-none focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:bg-blue-400" type="submit">Run Free Visibility Scan</button>
+                    </div>
+                    <p class="text-xs font-medium text-slate-500">You can enter example.com, https://example.com, or http://example.com.</p>
+                    <p class="text-xs font-medium text-slate-500">Free scans include anonymous limits to stop abuse. If you hit a protection step, sign in to continue.</p>
+                    <p class="text-xs font-black text-teal-700">✓ No credit card required. No signup.</p>
+                    @error('url')
+                        <p class="text-sm font-medium text-red-600">{{ $message }}</p>
+                    @enderror
+                </form>
             </div>
         </div>
     </section>
