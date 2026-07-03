@@ -71,10 +71,10 @@
         {{ $slot }}
     </main>
 
-    @if (request()->routeIs('report.show'))
-        <button type="button" onclick="window.print()" class="no-print fixed bottom-5 right-5 z-50 inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-blue-950/20 ring-1 ring-blue-500 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200">
+    @if (request()->routeIs('report.show') && auth()->check() && request()->route('scan'))
+        <a href="{{ route('report.pdf', ['scan' => request()->route('scan')->uuid]) }}" class="no-print fixed bottom-5 right-5 z-50 inline-flex items-center justify-center rounded-full bg-blue-600 px-5 py-3 text-sm font-black text-white shadow-xl shadow-blue-950/20 ring-1 ring-blue-500 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-200">
             Download PDF
-        </button>
+        </a>
     @endif
 
     <footer class="border-t border-slate-200 bg-slate-50">
