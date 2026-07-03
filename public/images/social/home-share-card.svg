@@ -1,0 +1,47 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" rx="36" fill="#020617"/>
+  <rect width="1200" height="630" rx="36" fill="url(#paint0_linear)"/>
+  <g opacity="0.18">
+    <path d="M0 112H1200" stroke="white"/>
+    <path d="M0 224H1200" stroke="white"/>
+    <path d="M0 336H1200" stroke="white"/>
+    <path d="M0 448H1200" stroke="white"/>
+    <path d="M0 560H1200" stroke="white"/>
+    <path d="M120 0V630" stroke="white"/>
+    <path d="M240 0V630" stroke="white"/>
+    <path d="M360 0V630" stroke="white"/>
+    <path d="M480 0V630" stroke="white"/>
+    <path d="M600 0V630" stroke="white"/>
+    <path d="M720 0V630" stroke="white"/>
+    <path d="M840 0V630" stroke="white"/>
+    <path d="M960 0V630" stroke="white"/>
+    <path d="M1080 0V630" stroke="white"/>
+  </g>
+  <rect x="72" y="72" width="88" height="88" rx="24" fill="#2563EB"/>
+  <path d="M113.594 134C122.147 134 128.5 128.112 128.5 119.5C128.5 110.888 122.147 105 113.594 105H101V134H113.594ZM110.422 113.125H113.359C117.631 113.125 120.406 115.93 120.406 119.5C120.406 123.07 117.631 125.875 113.359 125.875H110.422V113.125Z" fill="white"/>
+  <text x="72" y="236" fill="#5EEAD4" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="7">SEO CHECKER WITH FREE AUDIT REPORT</text>
+  <text x="72" y="338" fill="white" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="800">Quick SEO Analysis</text>
+  <text x="72" y="402" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="32">Analyze your website and get a free audit report with clear next steps.</text>
+  <g>
+    <rect x="72" y="468" width="316" height="84" rx="20" fill="white"/>
+    <text x="108" y="521" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700">Run Free SEO Scan</text>
+  </g>
+  <g>
+    <rect x="812" y="116" width="316" height="398" rx="28" fill="rgba(255,255,255,0.96)"/>
+    <text x="856" y="176" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" letter-spacing="4">REPORT SNAPSHOT</text>
+    <text x="856" y="278" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="88" font-weight="800">100</text>
+    <text x="1028" y="278" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="700">POINTS</text>
+    <rect x="856" y="320" width="220" height="18" rx="9" fill="#DBEAFE"/>
+    <rect x="856" y="320" width="168" height="18" rx="9" fill="#2563EB"/>
+    <text x="856" y="392" fill="#334155" font-family="Arial, Helvetica, sans-serif" font-size="28">Core checks</text>
+    <text x="856" y="434" fill="#334155" font-family="Arial, Helvetica, sans-serif" font-size="28">Recommendations</text>
+    <text x="856" y="476" fill="#334155" font-family="Arial, Helvetica, sans-serif" font-size="28">Lead-ready reports</text>
+  </g>
+  <defs>
+    <linearGradient id="paint0_linear" x1="67" y1="41" x2="1105" y2="602" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.53" stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#0C4A6E"/>
+    </linearGradient>
+  </defs>
+</svg>
