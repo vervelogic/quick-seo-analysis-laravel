@@ -79,7 +79,7 @@
                                 <div class="h-9 w-9 animate-spin rounded-full border-4 border-blue-200 border-t-blue-600"></div>
                             </div>
                             <div class="mx-auto mt-6 max-w-sm text-center">
-                                <h2 class="text-2xl font-black tracking-tight text-slate-950">Scanning your website...</h2>
+                                <div class="text-2xl font-black tracking-tight text-slate-950">Scanning your website...</div>
                                 <p class="mt-3 text-sm leading-6 text-slate-600">Checking SEO, AI Visibility, GEO and AEO signals. This usually takes a few seconds.</p>
                             </div>
                             <div class="mx-auto mt-6 w-full max-w-sm overflow-hidden rounded-full bg-slate-100">
