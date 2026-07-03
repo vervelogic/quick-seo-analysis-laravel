@@ -26,6 +26,7 @@
             'url' => $homeUrl,
             'type' => 'website',
             'image' => $homeSocialImage,
+            'image_alt' => 'Quick SEO Analysis homepage preview card',
             'site_name' => 'Quick SEO Analysis',
             'locale' => 'en_US',
         ],
@@ -34,6 +35,7 @@
             'title' => 'SEO Checker With Free Audit Report-Quick SEO Analysis',
             'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
             'image' => $homeSocialImage,
+            'image_alt' => 'Quick SEO Analysis homepage preview card',
         ],
         'extra_meta' => [
             ['name' => 'url', 'content' => $homeUrl],
@@ -99,6 +101,7 @@
         'url' => $resolvedCanonical,
         'type' => 'website',
         'image' => null,
+        'image_alt' => null,
         'site_name' => config('app.name'),
         'locale' => 'en_US',
     ], $mergedMeta['open_graph'] ?? []);
@@ -107,6 +110,7 @@
         'title' => $resolvedOg['title'] ?? $resolvedTitle,
         'description' => $resolvedOg['description'] ?? $resolvedDescription,
         'image' => $resolvedOg['image'] ?? null,
+        'image_alt' => $resolvedOg['image_alt'] ?? null,
     ], $mergedMeta['twitter'] ?? []);
     $resolvedAlternates = $mergedMeta['alternates'] ?? [];
     $resolvedExtraMeta = $mergedMeta['extra_meta'] ?? [];
@@ -174,6 +178,9 @@
     @if ($resolvedOg['image'])
         <meta property="og:image" content="{{ $resolvedOg['image'] }}">
     @endif
+    @if ($resolvedOg['image_alt'])
+        <meta property="og:image:alt" content="{{ $resolvedOg['image_alt'] }}">
+    @endif
     @if ($resolvedOg['site_name'])
         <meta property="og:site_name" content="{{ $resolvedOg['site_name'] }}">
     @endif
@@ -191,6 +198,9 @@
     @endif
     @if ($resolvedTwitter['image'])
         <meta name="twitter:image" content="{{ $resolvedTwitter['image'] }}">
+    @endif
+    @if ($resolvedTwitter['image_alt'])
+        <meta name="twitter:image:alt" content="{{ $resolvedTwitter['image_alt'] }}">
     @endif
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
