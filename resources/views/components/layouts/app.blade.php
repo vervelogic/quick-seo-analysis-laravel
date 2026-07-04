@@ -8,6 +8,7 @@
     $isHomeRoute = request()->routeIs('home');
     $homeUrl = route('home');
     $homeSocialImage = asset('images/social/home-share-card.svg');
+    $supportEmail = 'hello@quickseoanalysis.com';
 
     $homeSeoMeta = $isHomeRoute ? [
         'title' => 'SEO Checker With Free Audit Report-Quick SEO Analysis',
@@ -54,6 +55,13 @@
             'name' => 'Quick SEO Analysis',
             'url' => $homeUrl,
             'logo' => asset('favicon.png'),
+            'email' => $supportEmail,
+            'contactPoint' => [
+                '@type' => 'ContactPoint',
+                'contactType' => 'customer support',
+                'email' => $supportEmail,
+                'url' => route('contact'),
+            ],
         ],
         [
             '@context' => 'https://schema.org',
@@ -62,6 +70,11 @@
             'url' => $homeUrl,
             'description' => 'Analyze your website with best SEO Optimizer. This tool or software generates free audit report along with SEO tips and reviews  to improve rankings on SERPs',
             'inLanguage' => 'en-US',
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => route('home').'?q={search_term_string}',
+                'query-input' => 'required name=search_term_string',
+            ],
         ],
         [
             '@context' => 'https://schema.org',
@@ -75,6 +88,44 @@
                 '@type' => 'Offer',
                 'price' => '0',
                 'priceCurrency' => 'USD',
+            ],
+        ],
+        [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => [
+                [
+                    '@type' => 'Question',
+                    'name' => 'Do I need an account to run a scan?',
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => 'No. You can run a public scan and review the preview before deciding to log in for PDF access.',
+                    ],
+                ],
+                [
+                    '@type' => 'Question',
+                    'name' => 'What is the difference between the two audit paths?',
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => 'Current Visibility shows what the page communicates today. Keyword Focus reviews whether the page supports the keywords you are already targeting.',
+                    ],
+                ],
+                [
+                    '@type' => 'Question',
+                    'name' => 'Does QSA track rankings or search volume?',
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => 'Not in these audits. QSA focuses on page signals, intent alignment, visibility readiness, and what should be improved next.',
+                    ],
+                ],
+                [
+                    '@type' => 'Question',
+                    'name' => 'Can I share the report with clients or stakeholders?',
+                    'acceptedAnswer' => [
+                        '@type' => 'Answer',
+                        'text' => 'Yes. Logged-in users can download a PDF report for review and follow-up conversations.',
+                    ],
+                ],
             ],
         ],
     ] : [];
@@ -263,6 +314,8 @@
             <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 sm:flex">
                 <a class="hover:text-slate-950" href="{{ route('home') }}#benefits">Benefits</a>
                 <a class="hover:text-slate-950" href="{{ route('home') }}#checks">Checks</a>
+                <a class="hover:text-slate-950" href="{{ route('about') }}">About</a>
+                <a class="hover:text-slate-950" href="{{ route('contact') }}">Contact</a>
                 <a class="hover:text-slate-950" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Login' }}</a>
                 <a class="rounded-lg bg-slate-950 px-4 py-2 text-white hover:bg-slate-800" href="{{ route('home') }}#scan">Free report</a>
             </nav>
@@ -280,12 +333,24 @@
     @endif
 
     <footer class="border-t border-slate-200 bg-slate-50">
-        <div class="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
-            <p>&copy; {{ date('Y') }} {{ config('app.name') }}. Built for fast SEO discovery.</p>
-            <div class="flex gap-4">
-                <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Client Login' }}</a>
-                <a class="font-medium text-slate-700 hover:text-blue-700" href="/admin">Admin</a>
+        <div class="mx-auto max-w-7xl px-5 py-8 sm:px-6 lg:px-8">
+            <div class="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <p class="text-sm font-semibold text-slate-800">{{ config('app.name') }}</p>
+                    <p class="mt-2 max-w-md text-sm leading-6 text-slate-500">Search and AI visibility intelligence for teams that need faster answers, clearer priorities, and stronger crawl signals.</p>
+                    <p class="mt-2 text-sm text-slate-600">Questions? <a href="mailto:{{ $supportEmail }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $supportEmail }}</a></p>
+                </div>
+                <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-500">
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('about') }}">About</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('services') }}">Services</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('contact') }}">Contact</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('robots') }}">robots.txt</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('sitemap') }}">sitemap.xml</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Client Login' }}</a>
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="/admin">Admin</a>
+                </div>
             </div>
+            <p class="mt-6 text-sm text-slate-500">&copy; {{ date('Y') }} {{ config('app.name') }}. Built for fast SEO discovery.</p>
         </div>
     </footer>
 </body>
