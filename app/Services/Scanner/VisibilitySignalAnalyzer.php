@@ -10,9 +10,15 @@ class VisibilitySignalAnalyzer
         $title = strtolower((string) ($data['title'] ?? ''));
         $description = strtolower((string) ($data['meta_description'] ?? ''));
         $schemaTypes = array_map('strtolower', (array) data_get($data, 'schema.types', []));
+        $schemaDetails = (array) data_get($data, 'schema.details', []);
         $links = (array) ($data['links'] ?? []);
         $headings = array_map('strtolower', (array) ($data['headings'] ?? []));
         $questions = (array) data_get($data, 'content.questions', []);
+        $footerText = strtolower((string) data_get($data, 'content.footer_text', ''));
+        $localSeoSignals = $this->localSeoSignals($content.' '.$footerText, $links, $schemaTypes);
+        $googleBusinessProfileDetected = $this->googleBusinessProfileDetected($links);
+        $reviewSignals = $this->reviewSignals($content, $schemaTypes, $schemaDetails);
+        $aiTrustSignals = $this->aiTrustSignals($content.' '.$footerText, $schemaTypes, $schemaDetails, $links);
 
         $aiSignals = [
             'organization_entity_detected' => $this->hasAnySchema($schemaTypes, ['organization', 'localbusiness', 'corporation', 'professionalservice']),
@@ -22,9 +28,11 @@ class VisibilitySignalAnalyzer
             'author_expertise_signals' => $this->containsAny($content, ['author', 'expert', 'certified', 'specialist', 'years of experience', 'founded', 'team']),
             'faq_content_present' => $this->faqDetected($data, $content, $headings),
             'service_pages_present' => $this->linkContains($links, ['service', 'services', 'solutions', 'what-we-do']),
-            'trust_signals_present' => $this->containsAny($content, ['testimonial', 'review', 'case study', 'clients', 'trusted by', 'award', 'certified', 'partner']),
+            'trust_signals_present' => $this->containsAny($content.' '.$footerText, ['testimonial', 'review', 'case study', 'clients', 'trusted by', 'award', 'certified', 'partner']),
             'structured_answer_content' => count($questions) >= 2 || $this->containsAny($content, ['what is', 'how to', 'why does', 'step by step']),
-            'knowledge_graph_readiness' => $this->hasAnySchema($schemaTypes, ['organization', 'localbusiness']) && $this->hasContactInfo($data, $content, $links),
+            'knowledge_graph_readiness' => $this->hasAnySchema($schemaTypes, ['organization', 'localbusiness'])
+                && ($this->hasContactInfo($data, $content, $links) || (bool) ($schemaDetails['contactpoint'] ?? false))
+                && ((bool) ($schemaDetails['sameas_count'] ?? 0) > 0 || $this->linkContains($links, ['about'])),
         ];
 
         $geoSignals = [
@@ -39,7 +47,7 @@ class VisibilitySignalAnalyzer
 
         $aeoSignals = [
             'faq_schema' => $this->hasAnySchema($schemaTypes, ['faqpage']),
-            'how_to_content' => $this->hasAnySchema($schemaTypes, ['howto']) || $this->containsAny($content, ['how to', 'steps to', 'step 1', 'step-by-step']),
+            'how_to_content' => $this->hasAnySchema($schemaTypes, ['howto']) || $this->containsAny($content, ['how to', 'steps to', 'step 1', 'step-by-step', 'how it works']) || $this->hasStepHeadings($headings),
             'definition_content' => $this->containsAny($content, ['what is', 'refers to', 'is a ', 'is an ', 'means ']),
             'comparison_content' => $this->containsAny($content, [' vs ', ' versus ', 'compare', 'comparison', 'better than']),
             'featured_snippet_readiness' => count($questions) >= 2 && (int) data_get($data, 'content.visible_word_count', 0) >= 300,
@@ -63,6 +71,13 @@ class VisibilitySignalAnalyzer
             'ai_visibility_data' => [
                 'score' => $aiScore,
                 'signals' => $aiSignals,
+                'advanced_signals' => [
+                    'local_seo_signals_present' => $localSeoSignals,
+                    'google_business_profile_detected' => $googleBusinessProfileDetected,
+                    'review_schema_detected' => $reviewSignals['review_schema_detected'],
+                    'aggregate_rating_detected' => $reviewSignals['aggregate_rating_detected'],
+                    'ai_trust_signals_present' => $aiTrustSignals,
+                ],
                 'missing_signals' => $this->missing($aiSignals),
                 'recommended_actions' => $this->actionsFor($aiSignals, 'AI Visibility'),
             ],
@@ -246,5 +261,44 @@ class VisibilitySignalAnalyzer
         }
 
         return false;
+    }
+
+    private function hasStepHeadings(array $headings): bool
+    {
+        foreach ($headings as $heading) {
+            if (preg_match('/\bstep\s+\d+\b/i', $heading) || str_contains($heading, 'how it works')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function localSeoSignals(string $content, array $links, array $schemaTypes): bool
+    {
+        return $this->hasAnySchema($schemaTypes, ['localbusiness', 'postaladdress', 'place'])
+            || $this->linkContains($links, ['google.com/maps', 'maps.app.goo.gl', 'directions'])
+            || $this->containsAny($content, ['address', 'location', 'city', 'state', 'country']);
+    }
+
+    private function googleBusinessProfileDetected(array $links): bool
+    {
+        return $this->linkContains($links, ['business.google.com', 'g.page', 'google.com/maps', 'maps.app.goo.gl']);
+    }
+
+    private function reviewSignals(string $content, array $schemaTypes, array $schemaDetails): array
+    {
+        return [
+            'review_schema_detected' => $this->hasAnySchema($schemaTypes, ['review']) || (bool) ($schemaDetails['review'] ?? false),
+            'aggregate_rating_detected' => $this->hasAnySchema($schemaTypes, ['aggregaterating']) || (bool) ($schemaDetails['aggregaterating'] ?? false) || $this->containsAny($content, ['rated', 'stars', 'reviews']),
+        ];
+    }
+
+    private function aiTrustSignals(string $content, array $schemaTypes, array $schemaDetails, array $links): bool
+    {
+        return $this->containsAny($content, ['trusted by', 'case study', 'testimonial', 'review', 'privacy policy', 'terms', 'contact', 'about'])
+            || $this->hasAnySchema($schemaTypes, ['organization', 'website', 'faqpage'])
+            || (bool) ($schemaDetails['contactpoint'] ?? false)
+            || $this->linkContains($links, ['privacy', 'terms', 'contact', 'about']);
     }
 }
