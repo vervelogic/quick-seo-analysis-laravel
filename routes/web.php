@@ -14,6 +14,37 @@ use App\Http\Controllers\WhiteLabelReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => view('home.index'))->name('home');
+Route::view('/about', 'static.about')->name('about');
+Route::view('/contact', 'static.contact')->name('contact');
+Route::view('/services', 'static.services')->name('services');
+
+Route::get('/robots.txt', function () {
+    $sitemapUrl = route('sitemap');
+
+    return response(implode("\n", [
+        'User-agent: *',
+        'Allow: /',
+        '',
+        'Sitemap: '.$sitemapUrl,
+    ]), 200, ['Content-Type' => 'text/plain; charset=UTF-8']);
+})->name('robots');
+
+Route::get('/sitemap.xml', function () {
+    $urls = [
+        route('home'),
+        route('about'),
+        route('contact'),
+        route('services'),
+        route('keyword-focus.create'),
+    ];
+
+    $xml = view('static.sitemap', [
+        'urls' => $urls,
+        'lastModified' => now()->toAtomString(),
+    ])->render();
+
+    return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
+})->name('sitemap');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [ClientAuthController::class, 'create'])->name('login');
