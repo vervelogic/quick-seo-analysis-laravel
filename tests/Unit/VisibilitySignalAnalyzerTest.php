@@ -24,7 +24,12 @@ class VisibilitySignalAnalyzerTest extends TestCase
                 'structured_data_score' => 90,
             ],
             'schema' => [
-                'types' => ['Organization', 'FAQPage', 'HowTo'],
+                'types' => ['Organization', 'FAQPage'],
+                'details' => [
+                    'contactpoint' => true,
+                    'sameas_count' => 1,
+                    'organization' => true,
+                ],
             ],
             'links' => [
                 ['href' => '/about', 'text' => 'About Example'],
@@ -39,6 +44,7 @@ class VisibilitySignalAnalyzerTest extends TestCase
             'headings' => [
                 'What is digital strategy?',
                 'How to choose a partner?',
+                'How It Works',
                 'Services',
                 'Frequently Asked Questions',
             ],
@@ -59,6 +65,7 @@ class VisibilitySignalAnalyzerTest extends TestCase
         $this->assertGreaterThanOrEqual(80, $result['score_breakdown']['geo_score']);
         $this->assertGreaterThanOrEqual(80, $result['score_breakdown']['aeo_score']);
         $this->assertArrayHasKey('overall_visibility_score', $result['score_breakdown']);
+        $this->assertTrue($result['ai_visibility_data']['advanced_signals']['ai_trust_signals_present']);
     }
 
     public function test_recommendations_include_v2_fields(): void
