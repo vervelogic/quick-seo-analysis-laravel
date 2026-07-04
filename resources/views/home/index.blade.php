@@ -8,6 +8,7 @@
                 <p class="text-sm font-semibold uppercase tracking-[0.22em] text-teal-300">Search &amp; AI visibility intelligence</p>
                 <h1 class="mt-5 max-w-4xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">Check where you are on Search Engines and AI Visibility.</h1>
                 <p class="mt-6 max-w-3xl text-lg leading-8 text-slate-300">Understand what your page communicates, how search engines interpret it and how AI systems evaluate your content.</p>
+                <p class="mt-4 max-w-3xl text-sm leading-6 text-slate-400">Trusted by teams that need SEO health, AI visibility, keyword alignment, and stakeholder-ready reports in one place.</p>
 
                 <div class="mt-7 flex flex-wrap gap-2.5" aria-label="Platforms QSA helps analyze for visibility context">
                     @foreach ([
