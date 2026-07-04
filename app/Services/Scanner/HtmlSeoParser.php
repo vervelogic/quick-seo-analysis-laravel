@@ -17,7 +17,7 @@ class HtmlSeoParser
         $xpath = new DOMXPath($document);
         $title = $this->text($xpath, '//title');
         $description = $this->attr($xpath, '//meta[translate(@name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="description"]', 'content');
-        $canonical = $this->attr($xpath, '//link[translate(@rel, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="canonical"]', 'href');
+        $canonical = $this->canonical($xpath, $url);
         $robots = $this->attr($xpath, '//meta[translate(@name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="robots"]', 'content');
         $viewport = $this->attr($xpath, '//meta[translate(@name, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="viewport"]', 'content');
         $links = $xpath->query('//a[@href]');
@@ -42,13 +42,16 @@ class HtmlSeoParser
                 continue;
             }
 
-            $linkHost = strtolower(parse_url($href, PHP_URL_HOST) ?: $host);
-            $linkHost === $host ? $internal++ : $external++;
+            $absoluteHref = $this->resolveUrl($url, $href);
+            $linkHost = strtolower(parse_url($absoluteHref, PHP_URL_HOST) ?: $host);
+            $isInternal = $linkHost === $host;
+            $isInternal ? $internal++ : $external++;
+
             $linksData[] = [
-                'href' => $href,
+                'href' => $absoluteHref,
                 'text' => trim(preg_replace('/\s+/', ' ', $link->textContent)),
                 'host' => $linkHost,
-                'internal' => $linkHost === $host,
+                'internal' => $isInternal,
             ];
         }
 
@@ -130,6 +133,43 @@ class HtmlSeoParser
         return $value ? trim($value) : null;
     }
 
+    private function canonical(DOMXPath $xpath, string $url): ?string
+    {
+        $node = $xpath->query('//link[contains(concat(" ", normalize-space(translate(@rel, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")), " "), " canonical ")]')->item(0);
+        $href = $node?->attributes?->getNamedItem('href')?->nodeValue;
+
+        if (! $href) {
+            return null;
+        }
+
+        return $this->resolveUrl($url, trim($href));
+    }
+
+    private function resolveUrl(string $currentUrl, string $candidate): string
+    {
+        if (preg_match('/^https?:\/\//i', $candidate)) {
+            return $candidate;
+        }
+
+        $current = parse_url($currentUrl);
+        $scheme = $current['scheme'] ?? 'https';
+        $host = $current['host'] ?? '';
+        $port = isset($current['port']) ? ':'.$current['port'] : '';
+
+        if (str_starts_with($candidate, '//')) {
+            return $scheme.':'.$candidate;
+        }
+
+        if (str_starts_with($candidate, '/')) {
+            return $scheme.'://'.$host.$port.$candidate;
+        }
+
+        $path = $current['path'] ?? '/';
+        $basePath = str_ends_with($path, '/') ? $path : dirname($path).'/';
+
+        return $scheme.'://'.$host.$port.$basePath.$candidate;
+    }
+
     private function metaProperty(DOMXPath $xpath, string $property): ?string
     {
         return $this->attr($xpath, '//meta[translate(@property, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="'.strtolower($property).'"]', 'content');
@@ -144,18 +184,95 @@ class HtmlSeoParser
     {
         $jsonLdBlocks = $xpath->query('//script[translate(@type, "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")="application/ld+json"]');
         $types = [];
+        $details = [
+            'organization' => false,
+            'website' => false,
+            'faqpage' => false,
+            'review' => false,
+            'aggregaterating' => false,
+            'localbusiness' => false,
+            'searchaction' => false,
+            'contactpoint' => false,
+            'sameas_count' => 0,
+        ];
 
         foreach ($jsonLdBlocks as $block) {
             $decoded = json_decode(trim($block->textContent), true);
             $types = array_merge($types, $this->schemaTypes($decoded));
+            $details = $this->mergeSchemaDetails($details, $this->schemaDetails($decoded));
         }
 
         return [
             'json_ld_count' => $jsonLdBlocks->length,
             'types' => array_values(array_unique(array_filter($types))),
             'has_microdata' => $xpath->query('//*[@itemscope or @itemtype or @itemprop]')->length > 0,
-            'has_rdfa' => $xpath->query('//*[@typeof or @property or @vocab]')->length > 0,
+            'has_rdfa' => $xpath->query('//*[@typeof or @vocab or starts-with(@property, "schema:")]')->length > 0,
+            'details' => $details,
         ];
+    }
+
+    private function mergeSchemaDetails(array $carry, array $new): array
+    {
+        foreach ($new as $key => $value) {
+            if (is_bool($value)) {
+                $carry[$key] = $carry[$key] || $value;
+                continue;
+            }
+
+            if (is_int($value)) {
+                $carry[$key] = max((int) ($carry[$key] ?? 0), $value);
+            }
+        }
+
+        return $carry;
+    }
+
+    private function schemaDetails(mixed $data): array
+    {
+        $details = [
+            'organization' => false,
+            'website' => false,
+            'faqpage' => false,
+            'review' => false,
+            'aggregaterating' => false,
+            'localbusiness' => false,
+            'searchaction' => false,
+            'contactpoint' => false,
+            'sameas_count' => 0,
+        ];
+
+        if (! is_array($data)) {
+            return $details;
+        }
+
+        $types = array_map('strtolower', (array) ($data['@type'] ?? []));
+        $details['organization'] = in_array('organization', $types, true) || in_array('corporation', $types, true) || in_array('professionalservice', $types, true);
+        $details['website'] = in_array('website', $types, true);
+        $details['faqpage'] = in_array('faqpage', $types, true);
+        $details['review'] = in_array('review', $types, true);
+        $details['aggregaterating'] = in_array('aggregaterating', $types, true);
+        $details['localbusiness'] = in_array('localbusiness', $types, true);
+        $details['searchaction'] = in_array('searchaction', $types, true);
+        $details['contactpoint'] = in_array('contactpoint', $types, true) || isset($data['contactPoint']);
+        $details['sameas_count'] = count((array) ($data['sameAs'] ?? []));
+
+        foreach (['@graph', 'graph', 'itemListElement'] as $key) {
+            if (! isset($data[$key])) {
+                continue;
+            }
+
+            foreach ((array) $data[$key] as $item) {
+                $details = $this->mergeSchemaDetails($details, $this->schemaDetails($item));
+            }
+        }
+
+        foreach ($data as $item) {
+            if (is_array($item)) {
+                $details = $this->mergeSchemaDetails($details, $this->schemaDetails($item));
+            }
+        }
+
+        return $details;
     }
 
     private function schemaTypes(mixed $data): array
