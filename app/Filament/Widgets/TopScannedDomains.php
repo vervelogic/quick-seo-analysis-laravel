@@ -15,7 +15,6 @@ class TopScannedDomains extends Widget
     public function domains(): Collection
     {
         return Scan::query()
-            ->whereNull('legacy_source')
             ->latest()
             ->limit(500)
             ->get(['normalized_url'])
