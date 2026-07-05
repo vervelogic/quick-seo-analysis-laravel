@@ -20,14 +20,21 @@ class ImportOldBlogsCommand extends Command
         ]);
 
         $this->table(['Metric', 'Count'], [
-            ['Blogs found', $summary['blogs_found']],
+            ['Total discovered', $summary['total_discovered']],
+            ['Blogs selected', $summary['blogs_found']],
+            ['Crawled', $summary['crawled']],
             ['Imported', $summary['imported']],
+            ['Created', $summary['created']],
             ['Updated', $summary['updated']],
             ['Skipped', $summary['skipped']],
+            ['Failed', $summary['failed']],
+            ['Redirects created', $summary['redirects_created']],
             ['Categories created', $summary['categories_created']],
             ['Tags created', $summary['tags_created']],
-            ['Redirects created', $summary['redirects_created']],
-            ['Failed', $summary['failed']],
+            ['Images found', $summary['images_found']],
+            ['Missing images', $summary['missing_images']],
+            ['Missing metadata', $summary['missing_metadata']],
+            ['Execution time (s)', $summary['execution_time_seconds']],
         ]);
 
         if (! empty($summary['failed_urls'])) {
