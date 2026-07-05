@@ -2,202 +2,187 @@
 
 This project should deploy through GitHub, not through repeated manual WHM/cPanel terminal work.
 
-Target permanent flow:
+Target flow:
 
 ```text
-Codex updates code -> GitHub main branch -> GitHub Actions -> self-hosted VPS runner -> /home/alphaver/deploy-qsa.sh -> qsa.vervelogic.com
+Codex updates code -> GitHub main branch -> GitHub Actions -> VPS deploy script -> qsa.vervelogic.com
 ```
 
-## Recommended Permanent Setup
+## Current Blockers
 
-Use a GitHub self-hosted runner installed on the VPS. This avoids GitHub cloud runners needing to SSH into the server on every deploy.
+Codex currently has two environment limitations:
 
-### Why This Is Better
+1. Terminal Git cannot reach GitHub from this Codex session.
+   - Error seen: `Could not resolve host: github.com`
+   - This is a network/DNS restriction in the Codex environment.
 
-- No repeated WHM terminal deployment work.
-- No dependency on GitHub cloud runner SSH access to the VPS.
-- Deploy commands run locally on the same server that hosts QSA.
-- Codex only needs to push to GitHub main.
+2. The Codex GitHub connector can read the repository but cannot write.
+   - Error seen: `403 Resource not accessible by integration`
+   - This means the GitHub integration needs write access to the repository.
 
-## One-Time WHM/VPS Setup
+Until one of these is fixed, Codex can prepare commits locally but cannot reliably push them to GitHub.
 
-Run these once from WHM terminal as `root`.
+## Permanent Solution
 
-### 1. Open The GitHub Runner Page
+Use GitHub as the deployment source of truth.
+
+### 1. Give Codex GitHub Write Access
+
+In GitHub, make sure the Codex/GitHub integration has access to:
+
+```text
+vervelogic/quick-seo-analysis-laravel
+```
+
+Required permissions:
+
+```text
+Contents: Read and write
+Workflows: Read and write
+Metadata: Read
+```
+
+If the repository is under the `vervelogic` organization, the organization owner may need to approve the integration.
+
+### 2. Add GitHub Actions Secrets
 
 In GitHub:
 
 ```text
-vervelogic/quick-seo-analysis-laravel -> Settings -> Actions -> Runners -> New self-hosted runner
+Repo -> Settings -> Secrets and variables -> Actions -> New repository secret
 ```
 
-Choose:
+Add:
 
 ```text
-Linux
-x64
+VPS_HOST=72.61.240.98
+VPS_PORT=3681
+VPS_USER=alphaver
+VPS_SSH_KEY=<private SSH key for alphaver deploy access>
 ```
 
-GitHub will show commands similar to:
+Do not commit or share `VPS_SSH_KEY` in chat or code.
+
+Recommended: create a dedicated deploy key on your Mac or VPS:
 
 ```bash
-mkdir actions-runner && cd actions-runner
-curl -o actions-runner-linux-x64-...tar.gz -L https://github.com/actions/runner/releases/download/...
-tar xzf ./actions-runner-linux-x64-...tar.gz
-./config.sh --url https://github.com/vervelogic/quick-seo-analysis-laravel --token SOME_TEMP_TOKEN
+ssh-keygen -t ed25519 -C "qsa-github-actions-deploy" -f qsa_github_actions_deploy
 ```
 
-Use GitHub's exact download and token values because the token expires and the runner version changes over time.
-
-### 2. Install The Runner As alphaver
-
-First prepare the folder:
-
-```bash
-mkdir -p /home/alphaver/actions-runner/qsa
-chown -R alphaver:alphaver /home/alphaver/actions-runner
-```
-
-Then switch into the runner folder as `alphaver`:
-
-```bash
-sudo -u alphaver bash
-cd /home/alphaver/actions-runner/qsa
-```
-
-Now paste GitHub's runner download and extract commands, but run them inside:
+Add the public key to:
 
 ```text
-/home/alphaver/actions-runner/qsa
+/home/alphaver/.ssh/authorized_keys
 ```
 
-When you reach the `./config.sh` command, use this form so the runner gets the labels required by the workflow:
-
-```bash
-./config.sh \
-  --url https://github.com/vervelogic/quick-seo-analysis-laravel \
-  --token RUNNER_TOKEN_FROM_GITHUB \
-  --name qsa-whm-vps \
-  --labels qsa,production,whm \
-  --work _work \
-  --unattended
-```
-
-Exit back to root:
-
-```bash
-exit
-```
-
-### 3. Install Runner Service
-
-```bash
-cd /home/alphaver/actions-runner/qsa
-./svc.sh install alphaver
-./svc.sh start
-./svc.sh status
-```
-
-Expected status:
+Add the private key content to GitHub secret:
 
 ```text
-active (running)
+VPS_SSH_KEY
 ```
 
-### 4. Install Or Refresh Deploy Script
+### 3. Install VPS Deploy Script Once
+
+Create:
+
+```text
+/home/alphaver/deploy-qsa.sh
+```
+
+With:
 
 ```bash
-cd /home/alphaver/public_html/quick-seo-analysis
-git fetch origin main
-git reset --hard origin/main
-cp deploy/deploy-qsa.sh /home/alphaver/deploy-qsa.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR="/home/alphaver/public_html/quick-seo-analysis"
+
+cd "$APP_DIR"
+
+git pull origin main
+composer install --no-dev --optimize-autoloader
+php artisan migrate --force
+npm ci || npm install
+npm run build
+php artisan optimize:clear
+php artisan filament:assets
+php artisan route:clear
+php artisan view:clear
+php artisan config:clear
+
+if chown -R alphaver:alphaver "$APP_DIR" 2>/dev/null; then
+    echo "Ownership refreshed for $APP_DIR"
+else
+    echo "Skipping ownership refresh; run it once as root if permissions need repair."
+fi
+
+find storage bootstrap/cache -type d -exec chmod 775 {} \;
+find storage bootstrap/cache -type f -exec chmod 664 {} \;
+```
+
+Then run:
+
+```bash
 chmod +x /home/alphaver/deploy-qsa.sh
-chown alphaver:alphaver /home/alphaver/deploy-qsa.sh
 ```
 
-### 5. Test Deployment Once
+### 4. Add GitHub Actions Workflow
 
-```bash
-sudo -u alphaver /home/alphaver/deploy-qsa.sh
+The repo should contain:
+
+```text
+.github/workflows/deploy.yml
 ```
 
-Then confirm:
+With:
 
-```bash
-cd /home/alphaver/public_html/quick-seo-analysis
-git rev-parse HEAD
-curl -I https://qsa.vervelogic.com
+```yaml
+name: Deploy QSA
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to WHM VPS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run VPS deploy script
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          port: ${{ secrets.VPS_PORT }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script_stop: true
+          script: |
+            /home/alphaver/deploy-qsa.sh
 ```
 
-## Normal Future Working Pattern
+## Future Working Pattern
 
 After the setup is complete:
 
 1. Codex edits the Laravel project.
 2. Codex commits changes.
 3. Codex pushes to `main`.
-4. GitHub Actions runs on the VPS self-hosted runner labeled `qsa`.
-5. VPS runs `/home/alphaver/deploy-qsa.sh` locally.
+4. GitHub Actions connects to VPS.
+5. VPS runs `/home/alphaver/deploy-qsa.sh`.
 6. Site updates automatically.
 
 No WHM terminal work should be needed for normal code deployments.
 
-## Manual SSH Fallback
+## If Codex Still Cannot Push
 
-The workflow still includes a manual SSH fallback for emergency use only.
-
-In GitHub:
-
-```text
-Actions -> Deploy QSA -> Run workflow -> deploy_mode: ssh-fallback
-```
-
-Required repository secrets for fallback only:
-
-```text
-VPS_HOST
-VPS_PORT
-VPS_USER
-VPS_SSH_KEY
-```
-
-Do not commit or share `VPS_SSH_KEY` in chat or code.
-
-## Troubleshooting
-
-### Workflow Is Queued Forever
-
-The self-hosted runner is not online or does not have the `qsa` label.
-
-Check on VPS:
+If GitHub write access is still blocked, use this fallback from a local machine that can reach GitHub:
 
 ```bash
-cd /home/alphaver/actions-runner/qsa
-./svc.sh status
+cd /Users/Abhishek/Documents/Codex/2026-06-20/you-are-building-a-new-laravel/work/qsa-deploy-work-20260621085054
+git push origin main
 ```
 
-### Deploy Script Permission Denied
-
-```bash
-chmod +x /home/alphaver/deploy-qsa.sh
-chown alphaver:alphaver /home/alphaver/deploy-qsa.sh
-```
-
-### Git Pull Or Reset Fails
-
-Make sure the live checkout belongs to `alphaver`:
-
-```bash
-chown -R alphaver:alphaver /home/alphaver/public_html/quick-seo-analysis
-```
-
-### Composer Command Fails
-
-The deploy script uses cPanel PHP explicitly:
-
-```text
-/opt/cpanel/ea-php83/root/usr/bin/php
-/usr/local/bin/composer
-```
-
-If PHP version changes, update `deploy/deploy-qsa.sh` and `/home/alphaver/deploy-qsa.sh`.
+This is only a fallback. The permanent fix is giving Codex GitHub write access.
