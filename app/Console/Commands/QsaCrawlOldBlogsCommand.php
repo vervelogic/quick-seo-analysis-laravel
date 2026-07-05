@@ -20,6 +20,7 @@ class QsaCrawlOldBlogsCommand extends Command
 
         $this->info('Old blog crawl complete.');
         $this->table(['Metric', 'Count'], [
+            ['Visited URLs', count($result['visited_urls'])],
             ['Total blogs found', $result['total_blogs_found']],
             ['Categories found', count($result['categories'])],
             ['Tags found', count($result['tags'])],
