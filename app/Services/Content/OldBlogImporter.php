@@ -19,6 +19,7 @@ class OldBlogImporter
 
     public function import(array $options = []): array
     {
+        $startedAt = microtime(true);
         $dryRun = (bool) ($options['dry_run'] ?? false);
         $baseUrl = (string) ($options['base_url'] ?? 'https://www.quickseoanalysis.com');
         $limit = $options['limit'] ?? null;
@@ -32,31 +33,45 @@ class OldBlogImporter
 
         $summary = [
             'blogs_found' => count($urls),
-            'imported' => 0,
+            'total_discovered' => count($crawl['blog_urls']),
+            'crawled' => 0,
+            'created' => 0,
             'updated' => 0,
             'skipped' => 0,
+            'imported' => 0,
             'categories_created' => 0,
             'tags_created' => 0,
             'redirects_created' => 0,
             'failed' => 0,
+            'images_found' => 0,
+            'missing_images' => 0,
+            'missing_metadata' => 0,
+            'execution_time_seconds' => 0,
             'failed_urls' => [],
         ];
 
         $categorySlugs = [];
         $tagSlugs = [];
         $redirectCount = 0;
+        $potentialRedirectCount = 0;
+        $createdCategories = 0;
+        $createdTags = 0;
+        $run = null;
 
-        $run = ContentImportRun::create([
-            'source' => 'quickseoanalysis_old_blog',
-            'type' => 'blog',
-            'status' => 'running',
-            'dry_run' => $dryRun,
-            'started_at' => now(),
-            'summary' => $summary,
-        ]);
+        if (! $dryRun) {
+            $run = ContentImportRun::create([
+                'source' => 'quickseoanalysis_old_blog',
+                'type' => 'blog',
+                'status' => 'running',
+                'dry_run' => false,
+                'started_at' => now(),
+                'summary' => $summary,
+            ]);
+        }
 
         foreach ($urls as $url) {
             $post = $this->crawler->fetchPost($url);
+            $summary['crawled']++;
 
             if (! ($post['ok'] ?? false)) {
                 $summary['failed']++;
@@ -64,14 +79,11 @@ class OldBlogImporter
                 continue;
             }
 
-            $entry = ContentEntry::query()
-                ->where('type', 'blog')
-                ->where(function ($query) use ($post): void {
-                    $query
-                        ->where('legacy_url', $post['legacy_url'])
-                        ->orWhere('slug', $post['slug']);
-                })
-                ->first();
+            $summary['images_found'] += (int) ($post['images_found'] ?? 0);
+            $summary['missing_images'] += empty($post['featured_image']) ? 1 : 0;
+            $summary['missing_metadata'] += count($post['missing_metadata'] ?? []);
+
+            $entry = $this->findExistingEntry($post);
 
             $category = null;
             if (! empty($post['category'])) {
@@ -85,57 +97,49 @@ class OldBlogImporter
                             ['type' => 'blog', 'slug' => $categorySlug],
                             ['name' => $post['category']]
                         );
+
+                        if ($category->wasRecentlyCreated) {
+                            $createdCategories++;
+                        }
                     }
                 }
             }
 
-            if ($entry) {
-                $summary['updated']++;
-            } else {
-                $summary['imported']++;
+            $normalizedPayload = $this->buildEntryPayload($post, $category?->id, $baseUrl);
+
+            if ($entry && $this->entryMatchesPayload($entry, $normalizedPayload, $post)) {
+                $summary['skipped']++;
+                continue;
             }
 
             if ($dryRun) {
+                if ($entry) {
+                    $summary['updated']++;
+                    $summary['imported']++;
+                } else {
+                    $summary['created']++;
+                    $summary['imported']++;
+                }
+
+                if ($this->redirectWouldBeCreated($post, $normalizedPayload['slug'] ?? $post['slug'])) {
+                    $potentialRedirectCount++;
+                }
+
                 continue;
             }
 
             $entry ??= new ContentEntry(['type' => 'blog']);
-            $entry->fill([
-                'content_category_id' => $category?->id,
-                'title' => $post['title'] ?: Str::headline($post['slug']),
-                'slug' => $post['slug'],
-                'legacy_url' => $post['legacy_url'],
-                'author_name' => $post['author'] ?: 'Quick SEO Analysis',
-                'excerpt' => $post['excerpt'],
-                'content' => $this->normalizeImportedHtml($post['content_html'], $baseUrl),
-                'featured_image' => $post['featured_image'],
-                'featured_image_alt' => $post['featured_image_alt'],
-                'status' => ContentEntry::STATUS_PUBLISHED,
-                'published_at' => $this->parseDate($post['published_at']),
-                'modified_at' => $this->parseDate($post['modified_at']) ?: $this->parseDate($post['published_at']),
-                'seo_title' => $post['seo_title'],
-                'meta_description' => $post['meta_description'],
-                'meta_keywords' => $post['meta_keywords'],
-                'canonical_url' => $post['canonical'],
-                'robots' => 'index,follow',
-                'og_title' => $post['og_title'] ?: $post['title'],
-                'og_description' => $post['og_description'] ?: $post['meta_description'],
-                'og_image' => $post['og_image'] ?: $post['featured_image'],
-                'twitter_title' => $post['twitter_title'] ?: $post['og_title'] ?: $post['title'],
-                'twitter_description' => $post['twitter_description'] ?: $post['og_description'] ?: $post['meta_description'],
-                'twitter_image' => $post['twitter_image'] ?: $post['og_image'] ?: $post['featured_image'],
-                'schema_type' => $this->inferSchemaType($post['content_html']),
-                'imported_at' => now(),
-                'last_crawled_at' => now(),
-                'import_metadata' => [
-                    'source' => 'quickseoanalysis_old_blog',
-                    'legacy_url' => $post['legacy_url'],
-                ],
-                'legacy_metadata' => [
-                    'old_meta_keywords' => $post['meta_keywords'],
-                ],
-            ]);
+            $isNew = ! $entry->exists;
+            $entry->fill($normalizedPayload);
             $entry->save();
+
+            if ($isNew) {
+                $summary['created']++;
+                $summary['imported']++;
+            } else {
+                $summary['updated']++;
+                $summary['imported']++;
+            }
 
             foreach ($post['tags'] ?? [] as $tagName) {
                 $tagSlug = Str::slug((string) $tagName);
@@ -151,6 +155,10 @@ class OldBlogImporter
                     ['name' => $tagName]
                 );
 
+                if ($tag->wasRecentlyCreated) {
+                    $createdTags++;
+                }
+
                 $entry->tags()->syncWithoutDetaching([$tag->id]);
             }
 
@@ -160,6 +168,11 @@ class OldBlogImporter
                     'content_entry_id' => $entry->id,
                     'to_path' => $entry->publicPath(),
                     'status_code' => 301,
+                    'metadata' => [
+                        'legacy_url' => $post['legacy_url'],
+                        'new_url' => url($entry->publicPath()),
+                        'imported_at' => now()->toAtomString(),
+                    ],
                 ]
             );
 
@@ -168,21 +181,136 @@ class OldBlogImporter
             }
         }
 
-        $summary['categories_created'] = $dryRun
-            ? count($categorySlugs)
-            : ContentCategory::query()->where('type', 'blog')->count();
-        $summary['tags_created'] = $dryRun
-            ? count($tagSlugs)
-            : ContentTag::query()->where('type', 'blog')->count();
-        $summary['redirects_created'] = $dryRun ? count($urls) - $summary['failed'] : $redirectCount;
-        $run->update([
-            'status' => $summary['failed'] > 0 ? 'completed_with_errors' : 'completed',
-            'summary' => $summary,
-            'failures' => $summary['failed_urls'],
-            'finished_at' => now(),
-        ]);
+        $summary['categories_created'] = $dryRun ? count($categorySlugs) : $createdCategories;
+        $summary['tags_created'] = $dryRun ? count($tagSlugs) : $createdTags;
+        $summary['redirects_created'] = $dryRun ? $potentialRedirectCount : $redirectCount;
+        $summary['execution_time_seconds'] = round(microtime(true) - $startedAt, 2);
+
+        if ($run) {
+            $run->update([
+                'status' => $summary['failed'] > 0 ? 'completed_with_errors' : 'completed',
+                'summary' => $summary,
+                'failures' => $summary['failed_urls'],
+                'finished_at' => now(),
+            ]);
+        }
 
         return $summary;
+    }
+
+    private function findExistingEntry(array $post): ?ContentEntry
+    {
+        $normalizedTitle = $this->normalizeTitle($post['title'] ?? '');
+
+        return ContentEntry::query()
+            ->where('type', 'blog')
+            ->where(function ($query) use ($post, $normalizedTitle): void {
+                $query
+                    ->where('legacy_url', $post['legacy_url'])
+                    ->orWhere('slug', $post['slug']);
+
+                if ($normalizedTitle !== '') {
+                    $query->orWhereRaw('LOWER(REPLACE(title, " ", "")) = ?', [str_replace(' ', '', $normalizedTitle)]);
+                }
+            })
+            ->first();
+    }
+
+    private function buildEntryPayload(array $post, ?int $categoryId, string $baseUrl): array
+    {
+        return [
+            'content_category_id' => $categoryId,
+            'title' => $post['title'] ?: Str::headline($post['slug']),
+            'slug' => $post['slug'],
+            'legacy_url' => $post['legacy_url'],
+            'author_name' => $post['author'] ?: 'Quick SEO Analysis',
+            'excerpt' => $post['excerpt'],
+            'content' => $this->normalizeImportedHtml($post['content_html'], $baseUrl),
+            'featured_image' => $this->stripTrackingFromUrl((string) ($post['featured_image'] ?? '')) ?: null,
+            'featured_image_alt' => $post['featured_image_alt'],
+            'status' => ContentEntry::STATUS_PUBLISHED,
+            'published_at' => $this->parseDate($post['published_at']),
+            'modified_at' => $this->parseDate($post['modified_at']) ?: $this->parseDate($post['published_at']),
+            'seo_title' => $post['seo_title'],
+            'meta_description' => $post['meta_description'],
+            'meta_keywords' => $post['meta_keywords'],
+            'canonical_url' => $this->stripTrackingFromUrl((string) ($post['canonical'] ?? '')),
+            'robots' => 'index,follow',
+            'og_title' => $post['og_title'] ?: $post['title'],
+            'og_description' => $post['og_description'] ?: $post['meta_description'],
+            'og_image' => $this->stripTrackingFromUrl((string) ($post['og_image'] ?: $post['featured_image'] ?? '')) ?: null,
+            'twitter_title' => $post['twitter_title'] ?: $post['og_title'] ?: $post['title'],
+            'twitter_description' => $post['twitter_description'] ?: $post['og_description'] ?: $post['meta_description'],
+            'twitter_image' => $this->stripTrackingFromUrl((string) ($post['twitter_image'] ?: $post['og_image'] ?: $post['featured_image'] ?? '')) ?: null,
+            'schema_type' => $this->inferSchemaType($post['content_html']),
+            'imported_at' => now(),
+            'last_crawled_at' => now(),
+            'import_metadata' => [
+                'source' => 'quickseoanalysis_old_blog',
+                'legacy_url' => $post['legacy_url'],
+                'missing_metadata' => $post['missing_metadata'] ?? [],
+            ],
+            'legacy_metadata' => [
+                'old_meta_keywords' => $post['meta_keywords'],
+            ],
+        ];
+    }
+
+    private function entryMatchesPayload(ContentEntry $entry, array $payload, array $post): bool
+    {
+        $compareFields = [
+            'title',
+            'slug',
+            'legacy_url',
+            'author_name',
+            'excerpt',
+            'content',
+            'featured_image',
+            'featured_image_alt',
+            'seo_title',
+            'meta_description',
+            'meta_keywords',
+            'canonical_url',
+            'og_title',
+            'og_description',
+            'og_image',
+            'twitter_title',
+            'twitter_description',
+            'twitter_image',
+            'schema_type',
+        ];
+
+        foreach ($compareFields as $field) {
+            $existing = $entry->{$field};
+            $incoming = $payload[$field] ?? null;
+
+            if ($existing instanceof Carbon) {
+                $existing = $existing->toAtomString();
+            }
+            if ($incoming instanceof Carbon) {
+                $incoming = $incoming->toAtomString();
+            }
+
+            if ((string) $existing !== (string) $incoming) {
+                return false;
+            }
+        }
+
+        $existingTags = $entry->exists
+            ? $entry->tags()->pluck('name')->map(fn ($tag) => Str::title((string) $tag))->sort()->values()->all()
+            : [];
+        $incomingTags = collect($post['tags'] ?? [])->map(fn ($tag) => Str::title((string) $tag))->sort()->values()->all();
+
+        return $existingTags === $incomingTags;
+    }
+
+    private function redirectWouldBeCreated(array $post, string $slug): bool
+    {
+        $fromPath = parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$slug;
+
+        return ! ContentRedirect::query()
+            ->where('from_path', $fromPath)
+            ->exists();
     }
 
     private function parseDate(?string $value): ?Carbon
@@ -204,11 +332,65 @@ class OldBlogImporter
             return '';
         }
 
-        return str_replace(
-            [rtrim($baseUrl, '/').'/blog/', rtrim($baseUrl, '/').'/Blog/'],
-            [url('/blog/').'/', url('/blog/').'/'],
-            $html
-        );
+        $internalErrors = libxml_use_internal_errors(true);
+        $document = new \DOMDocument();
+        $document->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NONET);
+        libxml_clear_errors();
+        libxml_use_internal_errors($internalErrors);
+
+        $xpath = new \DOMXPath($document);
+
+        foreach ($xpath->query('//*[@style]') ?: [] as $node) {
+            if ($node instanceof \DOMElement) {
+                $node->removeAttribute('style');
+            }
+        }
+
+        foreach ($xpath->query('//script|//noscript|//iframe') ?: [] as $node) {
+            $node->parentNode?->removeChild($node);
+        }
+
+        foreach ($xpath->query('//a[@href]') ?: [] as $node) {
+            if (! $node instanceof \DOMElement) {
+                continue;
+            }
+
+            $href = $node->getAttribute('href');
+            $clean = $this->stripTrackingFromUrl($href);
+            $path = parse_url($clean, PHP_URL_PATH) ?: '';
+
+            if (preg_match('#^/(Blog|blog)/([^/?#]+)$#', $path, $match)
+                && ! str_contains($path, '/blog/category/')
+                && ! str_contains($path, '/blog/tag/')) {
+                $node->setAttribute('href', url('/blog/'.trim($match[2], '/')));
+            } else {
+                $node->setAttribute('href', $clean);
+            }
+        }
+
+        foreach ($xpath->query('//img[@src]') ?: [] as $node) {
+            if ($node instanceof \DOMElement) {
+                $node->setAttribute('src', $this->stripTrackingFromUrl($node->getAttribute('src')));
+                $node->removeAttribute('srcset');
+                $node->removeAttribute('sizes');
+            }
+        }
+
+        $body = $document->getElementsByTagName('body')->item(0);
+        if (! $body instanceof \DOMElement) {
+            return str_replace(
+                [rtrim($baseUrl, '/').'/blog/', rtrim($baseUrl, '/').'/Blog/'],
+                [url('/blog/').'/', url('/blog/').'/'],
+                $html
+            );
+        }
+
+        $clean = '';
+        foreach ($body->childNodes as $child) {
+            $clean .= $document->saveHTML($child);
+        }
+
+        return trim($clean);
     }
 
     private function inferSchemaType(?string $content): string
@@ -224,5 +406,48 @@ class OldBlogImporter
         }
 
         return 'BlogPosting';
+    }
+
+    private function normalizeTitle(string $title): string
+    {
+        return Str::lower(Str::squish($title));
+    }
+
+    private function stripTrackingFromUrl(string $url): string
+    {
+        if ($url === '') {
+            return $url;
+        }
+
+        $parts = parse_url($url);
+        if (! $parts || ! isset($parts['scheme'], $parts['host']) && ! str_starts_with($url, '/')) {
+            return preg_replace('/([?&])(utm_[^=]+|gclid|fbclid|msclkid|gad_[^=]+)=[^&]+/i', '$1', $url) ?? $url;
+        }
+
+        $params = [];
+        if (! empty($parts['query'])) {
+            parse_str($parts['query'], $params);
+            foreach (array_keys($params) as $key) {
+                if (preg_match('/^(utm_|gclid|fbclid|msclkid|gad_)/i', $key)) {
+                    unset($params[$key]);
+                }
+            }
+        }
+
+        if (isset($parts['scheme'], $parts['host'])) {
+            $rebuilt = $parts['scheme'].'://'.$parts['host'].($parts['path'] ?? '');
+        } else {
+            $rebuilt = $parts['path'] ?? $url;
+        }
+
+        if ($params !== []) {
+            $rebuilt .= '?'.http_build_query($params);
+        }
+
+        if (! empty($parts['fragment'])) {
+            $rebuilt .= '#'.$parts['fragment'];
+        }
+
+        return rtrim(preg_replace('/[?&]$/', '', $rebuilt) ?? $rebuilt, '?');
     }
 }
