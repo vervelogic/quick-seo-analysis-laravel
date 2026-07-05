@@ -24,7 +24,11 @@ class RecentLeads extends BaseWidget
                 Tables\Columns\TextColumn::make('status')->badge(),
                 Tables\Columns\TextColumn::make('assignedUser.name')->label('Owner')->default('Unassigned'),
                 Tables\Columns\TextColumn::make('scan.normalized_url')->label('Report')->limit(44),
-                Tables\Columns\TextColumn::make('created_at')->since(),
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Created')
+                    ->dateTime('d M Y, h:i A')
+                    ->timezone(config('app.timezone'))
+                    ->suffix(' IST'),
             ]);
     }
 }
