@@ -2,25 +2,16 @@
 set -euo pipefail
 
 APP_DIR="/home/alphaver/public_html/quick-seo-analysis"
-PHP="${PHP_BIN:-/opt/cpanel/ea-php83/root/usr/bin/php}"
-COMPOSER="${COMPOSER_BIN:-/usr/local/bin/composer}"
-NPM="${NPM_BIN:-/bin/npm}"
+PHP="/opt/cpanel/ea-php83/root/usr/bin/php"
+COMPOSER="/usr/local/bin/composer"
+NPM="/bin/npm"
 
 cd "$APP_DIR"
 
-echo "Deploying QSA from GitHub main..."
-git fetch origin main
-git reset --hard origin/main
-
+git pull origin main
 "$PHP" "$COMPOSER" install --no-dev --optimize-autoloader
 "$PHP" artisan migrate --force
-
-if [ -f package-lock.json ]; then
-    "$NPM" ci
-else
-    "$NPM" install
-fi
-
+"$NPM" ci || "$NPM" install
 "$NPM" run build
 "$PHP" artisan optimize:clear
 "$PHP" artisan filament:assets
@@ -28,7 +19,4 @@ fi
 "$PHP" artisan view:clear
 "$PHP" artisan config:clear
 
-find storage bootstrap/cache -type d -exec chmod 775 {} \;
-find storage bootstrap/cache -type f -exec chmod 664 {} \;
-
-echo "QSA deploy complete at commit $(git rev-parse HEAD)"
+echo "QSA deploy complete"
