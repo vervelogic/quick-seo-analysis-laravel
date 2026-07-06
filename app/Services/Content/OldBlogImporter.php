@@ -9,6 +9,7 @@ use App\Models\ContentRedirect;
 use App\Models\ContentTag;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class OldBlogImporter
 {
@@ -86,37 +87,16 @@ class OldBlogImporter
             $summary['missing_images'] += empty($post['featured_image']) ? 1 : 0;
             $summary['missing_metadata'] += count($post['missing_metadata'] ?? []);
 
-            $entry = $this->findExistingEntry($post);
-
-            $category = null;
-            if (! empty($post['category'])) {
-                $categorySlug = Str::slug($post['category']);
-
-                if ($categorySlug !== '') {
-                    $categorySlugs[$categorySlug] = true;
-
-                    if (! $dryRun) {
-                        $category = ContentCategory::firstOrCreate(
-                            ['type' => 'blog', 'slug' => $categorySlug],
-                            ['name' => $post['category']]
-                        );
-
-                        if ($category->wasRecentlyCreated) {
-                            $createdCategories++;
-                        }
-                    }
-                }
-            }
-
-            $normalizedPayload = $this->buildEntryPayload($post, $category?->id, $baseUrl);
-            $normalizedPayload = $this->preparePayloadForPersistence($normalizedPayload, $entry, $post);
-
-            if ($entry && $this->entryMatchesPayload($entry, $normalizedPayload, $post)) {
-                $summary['skipped']++;
-                continue;
-            }
-
             if ($dryRun) {
+                $entry = $this->findExistingEntry($post);
+                $normalizedPayload = $this->buildEntryPayload($post, null, $baseUrl);
+                [$entry, $normalizedPayload] = $this->resolveEntryAndPayload($entry, $normalizedPayload, $post);
+
+                if ($entry && $this->entryMatchesPayload($entry, $normalizedPayload, $post)) {
+                    $summary['skipped']++;
+                    continue;
+                }
+
                 if ($entry) {
                     $summary['updated']++;
                     $summary['imported']++;
@@ -132,57 +112,105 @@ class OldBlogImporter
                 continue;
             }
 
-            $entry ??= new ContentEntry(['type' => 'blog']);
-            $isNew = ! $entry->exists;
-            $entry->fill($normalizedPayload);
-            $entry->save();
+            try {
+                $result = DB::transaction(function () use ($post, $baseUrl, &$categorySlugs, &$tagSlugs): array {
+                    $entry = $this->findExistingEntry($post);
 
-            if ($isNew) {
-                $summary['created']++;
-                $summary['imported']++;
-            } else {
-                $summary['updated']++;
-                $summary['imported']++;
+                    $category = null;
+                    $categoryCreated = 0;
+                    if (! empty($post['category'])) {
+                        $categorySlug = Str::slug($post['category']);
+
+                        if ($categorySlug !== '') {
+                            $categorySlugs[$categorySlug] = true;
+                            $category = ContentCategory::firstOrCreate(
+                                ['type' => 'blog', 'slug' => $categorySlug],
+                                ['name' => $post['category']]
+                            );
+
+                            if ($category->wasRecentlyCreated) {
+                                $categoryCreated = 1;
+                            }
+                        }
+                    }
+
+                    $normalizedPayload = $this->buildEntryPayload($post, $category?->id, $baseUrl);
+                    [$entry, $normalizedPayload] = $this->resolveEntryAndPayload($entry, $normalizedPayload, $post);
+
+                    if ($entry && $this->entryMatchesPayload($entry, $normalizedPayload, $post)) {
+                        return [
+                            'status' => 'skipped',
+                            'categories_created' => $categoryCreated,
+                            'tags_created' => 0,
+                            'redirect_created' => 0,
+                        ];
+                    }
+
+                    $entry ??= new ContentEntry(['type' => 'blog']);
+                    $isNew = ! $entry->exists;
+                    $entry->fill($normalizedPayload);
+                    $entry->save();
+
+                    $tagsCreated = 0;
+                    foreach ($post['tags'] ?? [] as $tagName) {
+                        $tagSlug = Str::slug((string) $tagName);
+
+                        if ($tagSlug === '') {
+                            continue;
+                        }
+
+                        $tagSlugs[$tagSlug] = true;
+
+                        $tag = ContentTag::firstOrCreate(
+                            ['type' => 'blog', 'slug' => $tagSlug],
+                            ['name' => $tagName]
+                        );
+
+                        if ($tag->wasRecentlyCreated) {
+                            $tagsCreated++;
+                        }
+
+                        $entry->tags()->syncWithoutDetaching([$tag->id]);
+                    }
+
+                    $redirect = ContentRedirect::firstOrCreate(
+                        ['from_path' => parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$post['slug']],
+                        [
+                            'content_entry_id' => $entry->id,
+                            'to_path' => $entry->publicPath(),
+                            'status_code' => 301,
+                            'metadata' => [
+                                'legacy_url' => $post['legacy_url'],
+                                'new_url' => url($entry->publicPath()),
+                                'imported_at' => now()->toAtomString(),
+                            ],
+                        ]
+                    );
+
+                    return [
+                        'status' => $isNew ? 'created' : 'updated',
+                        'categories_created' => $categoryCreated,
+                        'tags_created' => $tagsCreated,
+                        'redirect_created' => $redirect->wasRecentlyCreated ? 1 : 0,
+                    ];
+                });
+            } catch (\Throwable) {
+                $summary['failed']++;
+                $summary['failed_urls'][] = $url;
+                continue;
             }
 
-            foreach ($post['tags'] ?? [] as $tagName) {
-                $tagSlug = Str::slug((string) $tagName);
+            $createdCategories += $result['categories_created'];
+            $createdTags += $result['tags_created'];
+            $redirectCount += $result['redirect_created'];
 
-                if ($tagSlug === '') {
-                    continue;
-                }
-
-                $tagSlugs[$tagSlug] = true;
-
-                $tag = ContentTag::firstOrCreate(
-                    ['type' => 'blog', 'slug' => $tagSlug],
-                    ['name' => $tagName]
-                );
-
-                if ($tag->wasRecentlyCreated) {
-                    $createdTags++;
-                }
-
-                $entry->tags()->syncWithoutDetaching([$tag->id]);
+            if ($result['status'] === 'skipped') {
+                $summary['skipped']++;
+                continue;
             }
 
-            $redirect = ContentRedirect::firstOrCreate(
-                ['from_path' => parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$post['slug']],
-                [
-                    'content_entry_id' => $entry->id,
-                    'to_path' => $entry->publicPath(),
-                    'status_code' => 301,
-                    'metadata' => [
-                        'legacy_url' => $post['legacy_url'],
-                        'new_url' => url($entry->publicPath()),
-                        'imported_at' => now()->toAtomString(),
-                    ],
-                ]
-            );
-
-            if ($redirect->wasRecentlyCreated) {
-                $redirectCount++;
-            }
+            $summary[$result['status']]++;
+            $summary['imported']++;
         }
 
         $summary['categories_created'] = $dryRun ? count($categorySlugs) : $createdCategories;
@@ -225,7 +253,7 @@ class OldBlogImporter
                 ->where('slug', $slug)
                 ->first();
 
-            if ($exactSlugMatch && blank($exactSlugMatch->legacy_url)) {
+            if ($exactSlugMatch) {
                 return $exactSlugMatch;
             }
         }
@@ -313,6 +341,24 @@ class OldBlogImporter
         $payload['slug'] = ContentEntry::uniqueSlug((string) ($payload['title'] ?? $slug), 'blog');
 
         return $payload;
+    }
+
+    private function resolveEntryAndPayload(?ContentEntry $entry, array $payload, array $post): array
+    {
+        if (! $entry) {
+            $slug = trim((string) ($payload['slug'] ?? ''));
+
+            if ($slug !== '') {
+                $entry = ContentEntry::query()
+                    ->where('type', 'blog')
+                    ->where('slug', $slug)
+                    ->first();
+            }
+        }
+
+        $payload = $this->preparePayloadForPersistence($payload, $entry, $post);
+
+        return [$entry, $payload];
     }
 
     private function entryMatchesPayload(ContentEntry $entry, array $payload, array $post): bool
