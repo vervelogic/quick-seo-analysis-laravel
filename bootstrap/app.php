@@ -22,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ImportLegacyDotnetCommand::class,
         PrepareLegacyAccountsCommand::class,
         RepairLegacyAuditTypesCommand::class,
+
+        // Blog CMS commands
         QsaCrawlOldBlogsCommand::class,
         ImportOldBlogsCommand::class,
     ])
