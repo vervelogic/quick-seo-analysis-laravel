@@ -13,7 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\URL;
 
-class BlogController extends Controller
+class BlogController
 {
     public function index(Request $request): View
     {
