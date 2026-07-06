@@ -2,23 +2,28 @@
 
 namespace App\Services\Content;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str as SupportStr;
-use Illuminate\Support\Str;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMXPath;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
+use Illuminate\Support\Str as SupportStr;
 
 class OldBlogCrawler
 {
-    public function crawl(string $baseUrl = 'https://www.quickseoanalysis.com', int $maxPages = 250): array
-    {
+    public function crawl(
+        string $baseUrl = 'https://www.quickseoanalysis.com',
+        int $maxPages = 250,
+        int $timeout = 10,
+        int $maxDepth = 2,
+        ?callable $progress = null
+    ): array {
         $queue = collect([
-            rtrim($baseUrl, '/'),
-            rtrim($baseUrl, '/').'/Blog',
-            rtrim($baseUrl, '/').'/blog',
-            rtrim($baseUrl, '/').'/blog/category/seo',
+            ['url' => rtrim($baseUrl, '/'), 'depth' => 0],
+            ['url' => rtrim($baseUrl, '/').'/Blog', 'depth' => 0],
+            ['url' => rtrim($baseUrl, '/').'/blog', 'depth' => 0],
+            ['url' => rtrim($baseUrl, '/').'/blog/category/seo', 'depth' => 1],
         ]);
 
         $visited = [];
@@ -27,20 +32,45 @@ class OldBlogCrawler
         $tags = [];
         $failed = [];
         $duplicates = [];
+        $skippedDepth = [];
 
         while ($queue->isNotEmpty() && count($visited) < $maxPages) {
-            $url = $queue->shift();
+            $current = $queue->shift();
+            $url = (string) ($current['url'] ?? '');
+            $depth = (int) ($current['depth'] ?? 0);
+
+            if ($url === '') {
+                continue;
+            }
 
             if (isset($visited[$url])) {
                 $duplicates[] = $url;
                 continue;
             }
 
+            if ($depth > $maxDepth) {
+                $skippedDepth[] = $url;
+                continue;
+            }
+
             $visited[$url] = true;
-            $response = $this->request($url);
+            $progress?('visiting', [
+                'url' => $url,
+                'depth' => $depth,
+                'visited' => count($visited),
+                'queue' => $queue->count(),
+                'posts' => count($posts),
+            ]);
+
+            $response = $this->request($url, $timeout);
 
             if (! $response['ok']) {
                 $failed[] = ['url' => $url, 'status' => $response['status']];
+                $progress?('failed', [
+                    'url' => $url,
+                    'depth' => $depth,
+                    'status' => $response['status'],
+                ]);
                 continue;
             }
 
@@ -59,30 +89,41 @@ class OldBlogCrawler
 
                 if (preg_match('~\/blog\/category\/([^\/?#]+)~i', $absolute, $categoryMatch)) {
                     $categories[] = Str::of($categoryMatch[1])->replace('-', ' ')->title()->toString();
-                    $queue->push($absolute);
+                    if (! isset($visited[$absolute])) {
+                        $queue->push(['url' => $absolute, 'depth' => $depth + 1]);
+                    }
                     continue;
                 }
 
                 if (preg_match('~\/blog\/tag\/([^\/?#]+)~i', $absolute, $tagMatch)) {
                     $tags[] = Str::of($tagMatch[1])->replace('-', ' ')->title()->toString();
-                    $queue->push($absolute);
+                    if (! isset($visited[$absolute])) {
+                        $queue->push(['url' => $absolute, 'depth' => $depth + 1]);
+                    }
                     continue;
                 }
 
                 if ($this->isBlogPostUrl($absolute)) {
-                    $posts[] = $absolute;
+                    if (! in_array($absolute, $posts, true)) {
+                        $posts[] = $absolute;
+                        $progress?('discovered_post', [
+                            'url' => $absolute,
+                            'depth' => $depth + 1,
+                            'posts' => count($posts),
+                        ]);
+                    }
                     continue;
                 }
 
-                if ($this->isBlogIndexUrl($absolute)) {
-                    $queue->push($absolute);
+                if ($this->isBlogIndexUrl($absolute) && ! isset($visited[$absolute])) {
+                    $queue->push(['url' => $absolute, 'depth' => $depth + 1]);
                 }
             }
 
             if (str_contains($html, 'View More')) {
                 foreach ($this->guessAjaxEndpoints($url) as $candidate) {
                     if (! isset($visited[$candidate])) {
-                        $queue->push($candidate);
+                        $queue->push(['url' => $candidate, 'depth' => $depth + 1]);
                     }
                 }
             }
@@ -100,12 +141,18 @@ class OldBlogCrawler
             'duplicate_urls' => array_values(array_unique($duplicates)),
             'failed_urls' => $failed,
             'visited_urls' => array_keys($visited),
+            'skipped_depth_urls' => array_values(array_unique($skippedDepth)),
+            'crawl_limits' => [
+                'max_pages' => $maxPages,
+                'max_depth' => $maxDepth,
+                'timeout' => $timeout,
+            ],
         ];
     }
 
-    public function fetchPost(string $url): array
+    public function fetchPost(string $url, int $timeout = 10): array
     {
-        $response = $this->request($url);
+        $response = $this->request($url, $timeout);
 
         if (! $response['ok']) {
             return [
@@ -181,10 +228,11 @@ class OldBlogCrawler
         ];
     }
 
-    private function request(string $url): array
+    private function request(string $url, int $timeout = 10): array
     {
         try {
-            $response = Http::timeout(20)
+            $response = Http::timeout($timeout)
+                ->connectTimeout(min($timeout, 5))
                 ->withHeaders([
                     'User-Agent' => config('qsa.scan_user_agent', 'QSA Blog Importer/1.0'),
                     'Accept' => 'text/html,application/xhtml+xml',
