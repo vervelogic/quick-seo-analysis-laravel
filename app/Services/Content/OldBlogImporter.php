@@ -23,8 +23,11 @@ class OldBlogImporter
         $dryRun = (bool) ($options['dry_run'] ?? false);
         $baseUrl = (string) ($options['base_url'] ?? 'https://www.quickseoanalysis.com');
         $limit = $options['limit'] ?? null;
+        $timeout = max(1, (int) ($options['timeout'] ?? 10));
+        $maxPages = max(1, (int) ($options['max_pages'] ?? (is_numeric($limit) ? (int) $limit : 25)));
+        $maxDepth = max(0, (int) ($options['max_depth'] ?? 2));
 
-        $crawl = $this->crawler->crawl($baseUrl);
+        $crawl = $this->crawler->crawl($baseUrl, $maxPages, $timeout, $maxDepth);
         $urls = $crawl['blog_urls'];
 
         if (is_numeric($limit)) {
@@ -70,7 +73,7 @@ class OldBlogImporter
         }
 
         foreach ($urls as $url) {
-            $post = $this->crawler->fetchPost($url);
+            $post = $this->crawler->fetchPost($url, $timeout);
             $summary['crawled']++;
 
             if (! ($post['ok'] ?? false)) {
@@ -258,196 +261,3 @@ class OldBlogImporter
 
     private function entryMatchesPayload(ContentEntry $entry, array $payload, array $post): bool
     {
-        $compareFields = [
-            'title',
-            'slug',
-            'legacy_url',
-            'author_name',
-            'excerpt',
-            'content',
-            'featured_image',
-            'featured_image_alt',
-            'seo_title',
-            'meta_description',
-            'meta_keywords',
-            'canonical_url',
-            'og_title',
-            'og_description',
-            'og_image',
-            'twitter_title',
-            'twitter_description',
-            'twitter_image',
-            'schema_type',
-        ];
-
-        foreach ($compareFields as $field) {
-            $existing = $entry->{$field};
-            $incoming = $payload[$field] ?? null;
-
-            if ($existing instanceof Carbon) {
-                $existing = $existing->toAtomString();
-            }
-            if ($incoming instanceof Carbon) {
-                $incoming = $incoming->toAtomString();
-            }
-
-            if ((string) $existing !== (string) $incoming) {
-                return false;
-            }
-        }
-
-        $existingTags = $entry->exists
-            ? $entry->tags()->pluck('name')->map(fn ($tag) => Str::title((string) $tag))->sort()->values()->all()
-            : [];
-        $incomingTags = collect($post['tags'] ?? [])->map(fn ($tag) => Str::title((string) $tag))->sort()->values()->all();
-
-        return $existingTags === $incomingTags;
-    }
-
-    private function redirectWouldBeCreated(array $post, string $slug): bool
-    {
-        $fromPath = parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$slug;
-
-        return ! ContentRedirect::query()
-            ->where('from_path', $fromPath)
-            ->exists();
-    }
-
-    private function parseDate(?string $value): ?Carbon
-    {
-        if (blank($value)) {
-            return null;
-        }
-
-        try {
-            return Carbon::parse($value);
-        } catch (\Throwable) {
-            return null;
-        }
-    }
-
-    private function normalizeImportedHtml(?string $html, string $baseUrl): string
-    {
-        if (blank($html)) {
-            return '';
-        }
-
-        $internalErrors = libxml_use_internal_errors(true);
-        $document = new \DOMDocument();
-        $document->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NONET);
-        libxml_clear_errors();
-        libxml_use_internal_errors($internalErrors);
-
-        $xpath = new \DOMXPath($document);
-
-        foreach ($xpath->query('//*[@style]') ?: [] as $node) {
-            if ($node instanceof \DOMElement) {
-                $node->removeAttribute('style');
-            }
-        }
-
-        foreach ($xpath->query('//script|//noscript|//iframe') ?: [] as $node) {
-            $node->parentNode?->removeChild($node);
-        }
-
-        foreach ($xpath->query('//a[@href]') ?: [] as $node) {
-            if (! $node instanceof \DOMElement) {
-                continue;
-            }
-
-            $href = $node->getAttribute('href');
-            $clean = $this->stripTrackingFromUrl($href);
-            $path = parse_url($clean, PHP_URL_PATH) ?: '';
-
-            if (preg_match('#^/(Blog|blog)/([^/?#]+)$#', $path, $match)
-                && ! str_contains($path, '/blog/category/')
-                && ! str_contains($path, '/blog/tag/')) {
-                $node->setAttribute('href', url('/blog/'.trim($match[2], '/')));
-            } else {
-                $node->setAttribute('href', $clean);
-            }
-        }
-
-        foreach ($xpath->query('//img[@src]') ?: [] as $node) {
-            if ($node instanceof \DOMElement) {
-                $node->setAttribute('src', $this->stripTrackingFromUrl($node->getAttribute('src')));
-                $node->removeAttribute('srcset');
-                $node->removeAttribute('sizes');
-            }
-        }
-
-        $body = $document->getElementsByTagName('body')->item(0);
-        if (! $body instanceof \DOMElement) {
-            return str_replace(
-                [rtrim($baseUrl, '/').'/blog/', rtrim($baseUrl, '/').'/Blog/'],
-                [url('/blog/').'/', url('/blog/').'/'],
-                $html
-            );
-        }
-
-        $clean = '';
-        foreach ($body->childNodes as $child) {
-            $clean .= $document->saveHTML($child);
-        }
-
-        return trim($clean);
-    }
-
-    private function inferSchemaType(?string $content): string
-    {
-        $content = strtolower(strip_tags((string) $content));
-
-        if (str_contains($content, 'faq') || substr_count($content, '?') >= 3) {
-            return 'FAQPage';
-        }
-
-        if (str_contains($content, 'step 1') || str_contains($content, 'how to')) {
-            return 'HowTo';
-        }
-
-        return 'BlogPosting';
-    }
-
-    private function normalizeTitle(string $title): string
-    {
-        return Str::lower(Str::squish($title));
-    }
-
-    private function stripTrackingFromUrl(string $url): string
-    {
-        if ($url === '') {
-            return $url;
-        }
-
-        $parts = parse_url($url);
-        if (! $parts || ! isset($parts['scheme'], $parts['host']) && ! str_starts_with($url, '/')) {
-            return preg_replace('/([?&])(utm_[^=]+|gclid|fbclid|msclkid|gad_[^=]+)=[^&]+/i', '$1', $url) ?? $url;
-        }
-
-        $params = [];
-        if (! empty($parts['query'])) {
-            parse_str($parts['query'], $params);
-            foreach (array_keys($params) as $key) {
-                if (preg_match('/^(utm_|gclid|fbclid|msclkid|gad_)/i', $key)) {
-                    unset($params[$key]);
-                }
-            }
-        }
-
-        if (isset($parts['scheme'], $parts['host'])) {
-            $rebuilt = $parts['scheme'].'://'.$parts['host'].($parts['path'] ?? '');
-        } else {
-            $rebuilt = $parts['path'] ?? $url;
-        }
-
-        if ($params !== []) {
-            $rebuilt .= '?'.http_build_query($params);
-        }
-
-        if (! empty($parts['fragment'])) {
-            $rebuilt .= '#'.$parts['fragment'];
-        }
-
-        return rtrim(preg_replace('/[?&]$/', '', $rebuilt) ?? $rebuilt, '?');
-    }
-}
