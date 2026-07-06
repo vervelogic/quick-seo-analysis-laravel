@@ -8,8 +8,8 @@ use App\Models\ContentImportRun;
 use App\Models\ContentRedirect;
 use App\Models\ContentTag;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OldBlogImporter
 {
@@ -105,9 +105,7 @@ class OldBlogImporter
                     $summary['imported']++;
                 }
 
-                if ($this->redirectWouldBeCreated($post, $normalizedPayload['slug'] ?? $post['slug'])) {
-                    $potentialRedirectCount++;
-                }
+                $potentialRedirectCount += count($this->redirectPathsToCreate($post, $normalizedPayload['slug'] ?? $post['slug']));
 
                 continue;
             }
@@ -173,25 +171,32 @@ class OldBlogImporter
                         $entry->tags()->syncWithoutDetaching([$tag->id]);
                     }
 
-                    $redirect = ContentRedirect::firstOrCreate(
-                        ['from_path' => parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$post['slug']],
-                        [
-                            'content_entry_id' => $entry->id,
-                            'to_path' => $entry->publicPath(),
-                            'status_code' => 301,
-                            'metadata' => [
-                                'legacy_url' => $post['legacy_url'],
-                                'new_url' => url($entry->publicPath()),
-                                'imported_at' => now()->toAtomString(),
-                            ],
-                        ]
-                    );
+                    $redirectCreated = 0;
+                    foreach ($this->redirectPathsToCreate($post, $normalizedPayload['slug'] ?? $post['slug']) as $fromPath) {
+                        $redirect = ContentRedirect::firstOrCreate(
+                            ['from_path' => $fromPath],
+                            [
+                                'content_entry_id' => $entry->id,
+                                'to_path' => $entry->publicPath(),
+                                'status_code' => 301,
+                                'metadata' => [
+                                    'legacy_url' => $post['legacy_url'],
+                                    'new_url' => url($entry->publicPath()),
+                                    'imported_at' => now()->toAtomString(),
+                                ],
+                            ]
+                        );
+
+                        if ($redirect->wasRecentlyCreated) {
+                            $redirectCreated++;
+                        }
+                    }
 
                     return [
                         'status' => $isNew ? 'created' : 'updated',
                         'categories_created' => $categoryCreated,
                         'tags_created' => $tagsCreated,
-                        'redirect_created' => $redirect->wasRecentlyCreated ? 1 : 0,
+                        'redirect_created' => $redirectCreated,
                     ];
                 });
             } catch (\Throwable) {
@@ -411,11 +416,7 @@ class OldBlogImporter
 
     private function redirectWouldBeCreated(array $post, string $slug): bool
     {
-        $fromPath = parse_url($post['legacy_url'], PHP_URL_PATH) ?: '/blog/'.$slug;
-
-        return ! ContentRedirect::query()
-            ->where('from_path', $fromPath)
-            ->exists();
+        return $this->redirectPathsToCreate($post, $slug) !== [];
     }
 
     private function parseDate(?string $value): ?Carbon
@@ -452,6 +453,14 @@ class OldBlogImporter
         }
 
         foreach ($xpath->query('//script|//noscript|//iframe') ?: [] as $node) {
+            $node->parentNode?->removeChild($node);
+        }
+
+        foreach ($xpath->query('//header|//footer|//aside|//nav|//form') ?: [] as $node) {
+            $node->parentNode?->removeChild($node);
+        }
+
+        foreach ($xpath->query('//*[contains(@class,"sidebar") or contains(@class,"comment") or contains(@class,"comments") or contains(@class,"recent") or contains(@class,"related") or contains(@class,"widget") or contains(@class,"share") or contains(@class,"social") or contains(@class,"author-box") or contains(@class,"reply") or contains(@class,"respond")]') ?: [] as $node) {
             $node->parentNode?->removeChild($node);
         }
 
@@ -500,17 +509,69 @@ class OldBlogImporter
 
     private function inferSchemaType(?string $content): string
     {
-        $content = strtolower(strip_tags((string) $content));
+        $content = (string) $content;
+        $normalized = strtolower(strip_tags($content));
 
-        if (str_contains($content, 'faq') || substr_count($content, '?') >= 3) {
+        if ($this->containsStrongFaqMarkup($content)) {
             return 'FAQPage';
         }
 
-        if (str_contains($content, 'step 1') || str_contains($content, 'how to')) {
+        if (str_contains($normalized, 'step 1') || str_contains($normalized, 'how to')) {
             return 'HowTo';
         }
 
         return 'BlogPosting';
+    }
+
+    private function containsStrongFaqMarkup(string $content): bool
+    {
+        if (blank($content)) {
+            return false;
+        }
+
+        if (preg_match_all('/<h[2-4][^>]*>(.*?)<\/h[2-4]>\s*<p[^>]*>(.*?)<\/p>/is', $content, $matches, PREG_SET_ORDER) === false) {
+            return false;
+        }
+
+        $questions = 0;
+        foreach ($matches as $match) {
+            $question = trim(strip_tags($match[1] ?? ''));
+            $answer = trim(strip_tags($match[2] ?? ''));
+
+            if ($question !== '' && $answer !== '' && str_contains($question, '?')) {
+                $questions++;
+            }
+        }
+
+        return $questions >= 2;
+    }
+
+    private function redirectPathsToCreate(array $post, string $slug): array
+    {
+        $legacyPath = trim((string) (parse_url((string) ($post['legacy_url'] ?? ''), PHP_URL_PATH) ?: ''));
+        $fallbackPath = '/blog/'.$slug;
+
+        $paths = [];
+        foreach ([$legacyPath !== '' ? $legacyPath : $fallbackPath] as $path) {
+            $normalized = '/'.ltrim($path, '/');
+            $paths[] = $normalized;
+
+            if (preg_match('~^/blog/(.+)$~', $normalized, $match)) {
+                $paths[] = '/Blog/'.$match[1];
+            } elseif (preg_match('~^/Blog/(.+)$~', $normalized, $match)) {
+                $paths[] = '/blog/'.$match[1];
+            }
+        }
+
+        $paths = collect($paths)
+            ->map(fn (string $path) => rtrim($path, '/') ?: '/')
+            ->unique()
+            ->values();
+
+        return $paths
+            ->reject(fn (string $path) => ContentRedirect::query()->where('from_path', $path)->exists())
+            ->values()
+            ->all();
     }
 
     private function normalizeTitle(string $title): string
