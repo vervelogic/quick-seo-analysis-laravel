@@ -362,7 +362,7 @@ class OldBlogImporter
             $clean = $this->stripTrackingFromUrl($href);
             $path = parse_url($clean, PHP_URL_PATH) ?: '';
 
-            if (preg_match('#^/(Blog|blog)/([^/?#]+)$#', $path, $match)
+            if (preg_match('~^/(Blog|blog)/([^/?#]+)$~', $path, $match)
                 && ! str_contains($path, '/blog/category/')
                 && ! str_contains($path, '/blog/tag/')) {
                 $node->setAttribute('href', url('/blog/'.trim($match[2], '/')));
