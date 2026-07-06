@@ -314,6 +314,7 @@
             <nav class="hidden items-center gap-8 text-sm font-medium text-slate-600 sm:flex">
                 <a class="hover:text-slate-950" href="{{ route('home') }}#benefits">Benefits</a>
                 <a class="hover:text-slate-950" href="{{ route('home') }}#checks">Checks</a>
+                <a class="hover:text-slate-950" href="{{ route('blog.index') }}">Blog</a>
                 <a class="hover:text-slate-950" href="{{ route('about') }}">About</a>
                 <a class="hover:text-slate-950" href="{{ route('contact') }}">Contact</a>
                 <a class="hover:text-slate-950" href="{{ auth()->check() ? route('dashboard.index') : route('login') }}">{{ auth()->check() ? 'Dashboard' : 'Login' }}</a>
@@ -341,6 +342,7 @@
                     <p class="mt-2 text-sm text-slate-600">Questions? <a href="mailto:{{ $supportEmail }}" class="font-medium text-blue-700 hover:text-blue-800">{{ $supportEmail }}</a></p>
                 </div>
                 <div class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm text-slate-500">
+                    <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('blog.index') }}">Blog</a>
                     <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('about') }}">About</a>
                     <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('services') }}">Services</a>
                     <a class="font-medium text-slate-700 hover:text-blue-700" href="{{ route('contact') }}">Contact</a>
