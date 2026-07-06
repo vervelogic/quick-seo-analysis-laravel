@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BlogController;
 use App\Http\Controllers\ClientAuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoogleAuthController;
@@ -11,12 +12,14 @@ use App\Http\Controllers\PublicReportPdfController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\WhiteLabelReportController;
+use App\Models\ContentEntry;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => view('home.index'))->name('home');
 Route::view('/about', 'static.about')->name('about');
 Route::view('/contact', 'static.contact')->name('contact');
 Route::view('/services', 'static.services')->name('services');
+Route::redirect('/Blog', '/blog', 301);
 
 Route::get('/robots.txt', function () {
     $sitemapUrl = route('sitemap');
@@ -35,8 +38,21 @@ Route::get('/sitemap.xml', function () {
         route('about'),
         route('contact'),
         route('services'),
+        route('blog.index'),
         route('keyword-focus.create'),
     ];
+
+    if (\Illuminate\Support\Facades\Schema::hasTable('content_entries')) {
+        $urls = array_merge(
+            $urls,
+            ContentEntry::query()
+                ->blogs()
+                ->published()
+                ->pluck('slug')
+                ->map(fn (string $slug): string => route('blog.show', $slug))
+                ->all()
+        );
+    }
 
     $xml = view('static.sitemap', [
         'urls' => $urls,
@@ -45,6 +61,13 @@ Route::get('/sitemap.xml', function () {
 
     return response($xml, 200, ['Content-Type' => 'application/xml; charset=UTF-8']);
 })->name('sitemap');
+
+Route::get('/blog', [BlogController::class, 'index'])->name('blog.index');
+Route::get('/blog/feed.xml', [BlogController::class, 'rss'])->name('blog.feed');
+Route::get('/blog/category/{slug}', [BlogController::class, 'category'])->name('blog.category');
+Route::get('/blog/tag/{slug}', [BlogController::class, 'tag'])->name('blog.tag');
+Route::get('/blog/{slug}', [BlogController::class, 'show'])->name('blog.show');
+Route::get('/Blog/{slug}', [BlogController::class, 'show'])->name('blog.legacy-show');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/login', [ClientAuthController::class, 'create'])->name('login');
