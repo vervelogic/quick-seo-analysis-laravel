@@ -57,13 +57,13 @@ class OldBlogCrawler
                     continue;
                 }
 
-                if (preg_match('#/blog/category/([^/?#]+)#i', $absolute, $categoryMatch)) {
+                if (preg_match('~\/blog\/category\/([^\/?#]+)~i', $absolute, $categoryMatch)) {
                     $categories[] = Str::of($categoryMatch[1])->replace('-', ' ')->title()->toString();
                     $queue->push($absolute);
                     continue;
                 }
 
-                if (preg_match('#/blog/tag/([^/?#]+)#i', $absolute, $tagMatch)) {
+                if (preg_match('~\/blog\/tag\/([^\/?#]+)~i', $absolute, $tagMatch)) {
                     $tags[] = Str::of($tagMatch[1])->replace('-', ' ')->title()->toString();
                     $queue->push($absolute);
                     continue;
@@ -220,7 +220,7 @@ class OldBlogCrawler
 
     private function isBlogPostUrl(string $url): bool
     {
-        return (bool) preg_match('#/blog/[^/?#]+$#i', $url)
+        return (bool) preg_match('~\/blog\/[^\/?#]+$~i', $url)
             && ! str_contains($url, '/blog/category/')
             && ! str_contains($url, '/blog/tag/')
             && ! str_contains($url, '/blog/author/');
