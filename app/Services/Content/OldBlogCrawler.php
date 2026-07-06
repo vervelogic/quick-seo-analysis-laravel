@@ -54,23 +54,27 @@ class OldBlogCrawler
             }
 
             $visited[$url] = true;
-            $progress?('visiting', [
-                'url' => $url,
-                'depth' => $depth,
-                'visited' => count($visited),
-                'queue' => $queue->count(),
-                'posts' => count($posts),
-            ]);
+            if ($progress) {
+                $progress('visiting', [
+                    'url' => $url,
+                    'depth' => $depth,
+                    'visited' => count($visited),
+                    'queue' => $queue->count(),
+                    'posts' => count($posts),
+                ]);
+            }
 
             $response = $this->request($url, $timeout);
 
             if (! $response['ok']) {
                 $failed[] = ['url' => $url, 'status' => $response['status']];
-                $progress?('failed', [
-                    'url' => $url,
-                    'depth' => $depth,
-                    'status' => $response['status'],
-                ]);
+                if ($progress) {
+                    $progress('failed', [
+                        'url' => $url,
+                        'depth' => $depth,
+                        'status' => $response['status'],
+                    ]);
+                }
                 continue;
             }
 
@@ -106,11 +110,13 @@ class OldBlogCrawler
                 if ($this->isBlogPostUrl($absolute)) {
                     if (! in_array($absolute, $posts, true)) {
                         $posts[] = $absolute;
-                        $progress?('discovered_post', [
-                            'url' => $absolute,
-                            'depth' => $depth + 1,
-                            'posts' => count($posts),
-                        ]);
+                        if ($progress) {
+                            $progress('discovered_post', [
+                                'url' => $absolute,
+                                'depth' => $depth + 1,
+                                'posts' => count($posts),
+                            ]);
+                        }
                     }
                     continue;
                 }
