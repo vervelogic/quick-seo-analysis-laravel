@@ -109,6 +109,7 @@ class OldBlogImporter
             }
 
             $normalizedPayload = $this->buildEntryPayload($post, $category?->id, $baseUrl);
+            $normalizedPayload = $this->preparePayloadForPersistence($normalizedPayload, $entry, $post);
 
             if ($entry && $this->entryMatchesPayload($entry, $normalizedPayload, $post)) {
                 $summary['skipped']++;
@@ -203,19 +204,41 @@ class OldBlogImporter
 
     private function findExistingEntry(array $post): ?ContentEntry
     {
+        $legacyUrl = trim((string) ($post['legacy_url'] ?? ''));
+        $slug = trim((string) ($post['slug'] ?? ''));
         $normalizedTitle = $this->normalizeTitle($post['title'] ?? '');
+
+        if ($legacyUrl !== '') {
+            $exactLegacyMatch = ContentEntry::query()
+                ->where('type', 'blog')
+                ->where('legacy_url', $legacyUrl)
+                ->first();
+
+            if ($exactLegacyMatch) {
+                return $exactLegacyMatch;
+            }
+        }
+
+        if ($slug !== '') {
+            $exactSlugMatch = ContentEntry::query()
+                ->where('type', 'blog')
+                ->where('slug', $slug)
+                ->first();
+
+            if ($exactSlugMatch && blank($exactSlugMatch->legacy_url)) {
+                return $exactSlugMatch;
+            }
+        }
+
+        if (! $this->hasStrongTitle($post['title'] ?? '', $slug)) {
+            return null;
+        }
 
         return ContentEntry::query()
             ->where('type', 'blog')
-            ->where(function ($query) use ($post, $normalizedTitle): void {
-                $query
-                    ->where('legacy_url', $post['legacy_url'])
-                    ->orWhere('slug', $post['slug']);
-
-                if ($normalizedTitle !== '') {
-                    $query->orWhereRaw('LOWER(REPLACE(title, " ", "")) = ?', [str_replace(' ', '', $normalizedTitle)]);
-                }
-            })
+            ->whereNull('legacy_url')
+            ->when($slug !== '', fn ($query) => $query->where('slug', $slug))
+            ->whereRaw('LOWER(REPLACE(title, " ", "")) = ?', [str_replace(' ', '', $normalizedTitle)])
             ->first();
     }
 
@@ -257,6 +280,39 @@ class OldBlogImporter
                 'old_meta_keywords' => $post['meta_keywords'],
             ],
         ];
+    }
+
+    private function preparePayloadForPersistence(array $payload, ?ContentEntry $entry, array $post): array
+    {
+        if ($entry) {
+            return $payload;
+        }
+
+        $legacyUrl = trim((string) ($post['legacy_url'] ?? ''));
+        $slug = trim((string) ($payload['slug'] ?? ''));
+
+        if ($slug === '') {
+            $payload['slug'] = ContentEntry::uniqueSlug((string) ($payload['title'] ?? 'Entry'), 'blog');
+
+            return $payload;
+        }
+
+        $slugConflict = ContentEntry::query()
+            ->where('type', 'blog')
+            ->where('slug', $slug)
+            ->first();
+
+        if (! $slugConflict) {
+            return $payload;
+        }
+
+        if ($legacyUrl !== '' && $slugConflict->legacy_url === $legacyUrl) {
+            return $payload;
+        }
+
+        $payload['slug'] = ContentEntry::uniqueSlug((string) ($payload['title'] ?? $slug), 'blog');
+
+        return $payload;
     }
 
     private function entryMatchesPayload(ContentEntry $entry, array $payload, array $post): bool
@@ -414,6 +470,32 @@ class OldBlogImporter
     private function normalizeTitle(string $title): string
     {
         return Str::lower(Str::squish($title));
+    }
+
+    private function hasStrongTitle(?string $title, ?string $slug = null): bool
+    {
+        $title = trim((string) $title);
+
+        if ($title === '') {
+            return false;
+        }
+
+        $normalizedTitle = $this->normalizeTitle($title);
+        $normalizedSlug = Str::of((string) $slug)->replace('-', ' ')->lower()->squish()->toString();
+
+        if ($normalizedTitle === '') {
+            return false;
+        }
+
+        if (in_array($normalizedTitle, ['quick seo analysis', 'blog', 'entry'], true)) {
+            return false;
+        }
+
+        if ($normalizedSlug !== '' && $normalizedTitle === $normalizedSlug) {
+            return str_word_count($title) >= 3;
+        }
+
+        return str_word_count($title) >= 3;
     }
 
     private function stripTrackingFromUrl(string $url): string
