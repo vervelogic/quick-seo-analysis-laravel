@@ -172,7 +172,9 @@ class OldBlogCrawler
         $document = $this->parseDocument($html);
         $xpath = $document['xpath'] ?? null;
 
-        $title = $xpath ? $this->textFirst($xpath, ['//head/title']) : $this->extractRegex('/<title>(.*?)<\/title>/is', $html);
+        $title = $xpath
+            ? ($this->extractArticleTitleDom($xpath) ?? $this->textFirst($xpath, ['//head/title']))
+            : $this->extractRegex('/<title>(.*?)<\/title>/is', $html);
         $metaDescription = $this->metaContent($xpath, ['description']) ?? $this->extractRegex('/<meta[^>]+name="description"[^>]+content="([^"]*)"/is', $html);
         $metaKeywords = $this->metaContent($xpath, ['keywords']) ?? $this->extractRegex('/<meta[^>]+name="keywords"[^>]+content="([^"]*)"/is', $html);
         $canonical = $xpath ? $this->firstAttribute($xpath, ['//link[contains(translate(@rel,"ABCDEFGHIJKLMNOPQRSTUVWXYZ","abcdefghijklmnopqrstuvwxyz"),"canonical")]'], 'href') : $this->extractRegex('/<link[^>]+rel="canonical"[^>]+href="([^"]*)"/is', $html);
@@ -434,12 +436,16 @@ class OldBlogCrawler
     private function extractMainBodyDom(DOMXPath $xpath, string $html): string
     {
         $queries = [
+            '//div[@itemprop="description"]',
+            '//*[@itemprop="articleBody"]',
+            '//article//*[contains(@class,"post-content")]',
+            '//article//*[contains(@class,"entry-content")]',
+            '//article//*[contains(@class,"article-content")]',
+            '//article//*[contains(@class,"single-post")]',
             '//article',
-            '//*[contains(@class,"post-content")]',
-            '//*[contains(@class,"entry-content")]',
-            '//*[contains(@class,"article-content")]',
+            '//*[contains(@class,"blog-detail")]//*[contains(@class,"post-content")]',
+            '//*[contains(@class,"blog-detail")]//*[contains(@class,"entry-content")]',
             '//*[contains(@class,"blog-detail")]',
-            '//*[contains(@class,"single-post")]',
             '//main',
         ];
 
@@ -448,12 +454,30 @@ class OldBlogCrawler
             if ($nodes && $nodes->length > 0) {
                 $node = $nodes->item(0);
                 if ($node instanceof DOMElement) {
-                    return $this->innerHtml($node);
+                    $cleanNode = $this->cloneAndCleanArticleNode($node);
+                    $cleanHtml = $this->innerHtml($cleanNode);
+
+                    if (trim(strip_tags($cleanHtml)) !== '') {
+                        return $cleanHtml;
+                    }
                 }
             }
         }
 
         return $this->extractMainBody($html);
+    }
+
+    private function extractArticleTitleDom(DOMXPath $xpath): ?string
+    {
+        return $this->textFirst($xpath, [
+            '//h1[@itemprop="headline"]',
+            '//article//h1[@itemprop="headline"]',
+            '//article//h1[contains(@class,"post-title")]',
+            '//article//h1[contains(@class,"entry-title")]',
+            '//*[contains(@class,"blog-detail")]//h1',
+            '//article//h1',
+            '//main//h1',
+        ]);
     }
 
     private function extractAuthorDom(DOMXPath $xpath): ?string
@@ -569,6 +593,13 @@ class OldBlogCrawler
         $priority = [
             $this->metaPropertyContent($xpath, ['og:image']),
             $this->metaContent($xpath, ['twitter:image']),
+            $this->firstMeaningfulImage($xpath, [
+                '//*[@itemprop="image"]//img',
+                '//article//*[@itemprop="image"]//img',
+                '//article//img[contains(@class,"featured")]',
+                '//article//img[contains(@class,"post-thumbnail")]',
+                '//article//img[contains(@class,"wp-post-image")]',
+            ], $pageUrl),
             $this->firstMeaningfulImage($xpath, [
                 '//article//img',
                 '//*[contains(@class,"featured")]//img',
@@ -814,6 +845,49 @@ class OldBlogCrawler
         $value = html_entity_decode(trim(strip_tags($value)));
 
         return $value !== '' ? $value : null;
+    }
+
+    private function cloneAndCleanArticleNode(DOMElement $element): DOMElement
+    {
+        $document = new DOMDocument('1.0', 'UTF-8');
+        $document->loadHTML('<div id="qsa-import-root"></div>', LIBXML_NOERROR | LIBXML_NOWARNING | LIBXML_NONET);
+
+        $root = $document->getElementById('qsa-import-root');
+        $imported = $document->importNode($element, true);
+
+        if ($root instanceof DOMElement) {
+            $root->appendChild($imported);
+        }
+
+        $xpath = new DOMXPath($document);
+        $removalQueries = [
+            '//header',
+            '//footer',
+            '//aside',
+            '//nav',
+            '//form',
+            '//*[contains(@class,"sidebar")]',
+            '//*[contains(@class,"comment")]',
+            '//*[contains(@class,"comments")]',
+            '//*[contains(@class,"recent")]',
+            '//*[contains(@class,"related")]',
+            '//*[contains(@class,"widget")]',
+            '//*[contains(@class,"share")]',
+            '//*[contains(@class,"social")]',
+            '//*[contains(@class,"author-box")]',
+            '//*[contains(@class,"reply")]',
+            '//*[contains(@class,"respond")]',
+            '//*[contains(@class,"newsletter")]',
+            '//*[contains(@class,"breadcrumb")]',
+        ];
+
+        foreach ($removalQueries as $query) {
+            foreach ($xpath->query($query, $root ?: null) ?: [] as $node) {
+                $node->parentNode?->removeChild($node);
+            }
+        }
+
+        return $root instanceof DOMElement ? $root : $element;
     }
 
     private function stripTrackingFromUrl(string $url): string
