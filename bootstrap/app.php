@@ -1,8 +1,10 @@
 <?php
 
 use App\Console\Commands\ImportLegacyDotnetCommand;
+use App\Console\Commands\ImportOldBlogsCommand;
 use App\Console\Commands\InspectLegacyDotnetCommand;
 use App\Console\Commands\PrepareLegacyAccountsCommand;
+use App\Console\Commands\QsaCrawlOldBlogsCommand;
 use App\Console\Commands\RepairLegacyAuditTypesCommand;
 use App\Http\Middleware\AddSecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -20,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ImportLegacyDotnetCommand::class,
         PrepareLegacyAccountsCommand::class,
         RepairLegacyAuditTypesCommand::class,
+        QsaCrawlOldBlogsCommand::class,
+        ImportOldBlogsCommand::class,
     ])
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(AddSecurityHeaders::class);
