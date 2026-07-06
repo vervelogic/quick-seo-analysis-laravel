@@ -7,7 +7,13 @@ use Illuminate\Console\Command;
 
 class ImportOldBlogsCommand extends Command
 {
-    protected $signature = 'qsa:import-old-blogs {--dry-run} {--base-url=https://www.quickseoanalysis.com} {--limit=}';
+    protected $signature = 'qsa:import-old-blogs
+        {--dry-run}
+        {--base-url=https://www.quickseoanalysis.com}
+        {--limit=25}
+        {--timeout=10}
+        {--max-pages=25}
+        {--max-depth=2}';
 
     protected $description = 'Import old quickseoanalysis.com blog content into the QSA content module.';
 
@@ -17,6 +23,9 @@ class ImportOldBlogsCommand extends Command
             'dry_run' => (bool) $this->option('dry-run'),
             'base_url' => (string) $this->option('base-url'),
             'limit' => $this->option('limit'),
+            'timeout' => (int) $this->option('timeout'),
+            'max_pages' => (int) $this->option('max-pages'),
+            'max_depth' => (int) $this->option('max-depth'),
         ]);
 
         $this->table(['Metric', 'Count'], [
