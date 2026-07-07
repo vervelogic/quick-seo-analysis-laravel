@@ -2,36 +2,27 @@
 
 namespace App\Console\Commands;
 
-use App\Services\Content\OldBlogImporter;
+use App\Services\Content\KnownLegacyBlogImporter;
 use Illuminate\Console\Command;
 
 class ImportOldBlogsCommand extends Command
 {
-    protected $signature = 'qsa:import-old-blogs
-        {--dry-run}
-        {--base-url=https://www.quickseoanalysis.com}
-        {--limit=25}
-        {--timeout=10}
-        {--max-pages=25}
-        {--max-depth=2}';
+    protected $signature = 'qsa:import-old-blogs {--dry-run} {--urls-file=} {--timeout=10}';
 
-    protected $description = 'Import old quickseoanalysis.com blog content into the QSA content module.';
+    protected $description = 'Import the fixed legacy quickseoanalysis.com blog URL list into the QSA content module.';
 
-    public function handle(OldBlogImporter $importer): int
+    public function handle(KnownLegacyBlogImporter $importer): int
     {
         $summary = $importer->import([
             'dry_run' => (bool) $this->option('dry-run'),
-            'base_url' => (string) $this->option('base-url'),
-            'limit' => $this->option('limit'),
+            'urls_file' => $this->option('urls-file'),
             'timeout' => (int) $this->option('timeout'),
-            'max_pages' => (int) $this->option('max-pages'),
-            'max_depth' => (int) $this->option('max-depth'),
         ]);
 
         $this->table(['Metric', 'Count'], [
-            ['Total discovered', $summary['total_discovered']],
-            ['Blogs selected', $summary['blogs_found']],
-            ['Crawled', $summary['crawled']],
+            ['URLs configured', $summary['urls_configured']],
+            ['Expected URLs', $summary['expected_count']],
+            ['Processed', $summary['processed']],
             ['Imported', $summary['imported']],
             ['Created', $summary['created']],
             ['Updated', $summary['updated']],
@@ -46,16 +37,20 @@ class ImportOldBlogsCommand extends Command
             ['Execution time (s)', $summary['execution_time_seconds']],
         ]);
 
-        if (! empty($summary['failed_urls'])) {
-            $this->warn('Failed URLs:');
-            foreach ($summary['failed_urls'] as $url) {
-                $this->line('- '.$url);
+        if (($summary['urls_configured'] ?? 0) !== ($summary['expected_count'] ?? 13)) {
+            $this->warn('Configured URL count does not yet match the expected legacy total.');
+        }
+
+        if (! empty($summary['failures'])) {
+            $this->warn('Failures:');
+            foreach ($summary['failures'] as $failure) {
+                $this->line('- '.$failure['url'].' => '.$failure['message']);
             }
         }
 
         $this->info($this->option('dry-run')
             ? 'Dry-run only. No blog rows were created or updated.'
-            : 'Blog import finished.');
+            : 'Controlled legacy blog import finished.');
 
         return self::SUCCESS;
     }
