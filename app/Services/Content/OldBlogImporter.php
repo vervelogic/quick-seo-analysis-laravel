@@ -3,7 +3,6 @@
 namespace App\Services\Content;
 
 use App\Models\ContentCategory;
-use App\Models\ContentEntry;
 use App\Models\ContentImportRun;
 use App\Models\ContentRedirect;
 use App\Models\ContentTag;
@@ -144,7 +143,7 @@ class OldBlogImporter
                         ];
                     }
 
-                    $entry ??= new ContentEntry(['type' => 'blog']);
+                    $entry ??= new \App\Models\ContentEntry(['type' => 'blog']);
                     $isNew = ! $entry->exists;
                     $entry->fill($normalizedPayload);
                     $entry->save();
@@ -235,14 +234,14 @@ class OldBlogImporter
         return $summary;
     }
 
-    private function findExistingEntry(array $post): ?ContentEntry
+    private function findExistingEntry(array $post): ?\App\Models\ContentEntry
     {
         $legacyUrl = trim((string) ($post['legacy_url'] ?? ''));
         $slug = trim((string) ($post['slug'] ?? ''));
         $normalizedTitle = $this->normalizeTitle($post['title'] ?? '');
 
         if ($legacyUrl !== '') {
-            $exactLegacyMatch = ContentEntry::query()
+            $exactLegacyMatch = \App\Models\ContentEntry::query()
                 ->where('type', 'blog')
                 ->where('legacy_url', $legacyUrl)
                 ->first();
@@ -253,7 +252,7 @@ class OldBlogImporter
         }
 
         if ($slug !== '') {
-            $exactSlugMatch = ContentEntry::query()
+            $exactSlugMatch = \App\Models\ContentEntry::query()
                 ->where('type', 'blog')
                 ->where('slug', $slug)
                 ->first();
@@ -267,7 +266,7 @@ class OldBlogImporter
             return null;
         }
 
-        return ContentEntry::query()
+        return \App\Models\ContentEntry::query()
             ->where('type', 'blog')
             ->whereNull('legacy_url')
             ->when($slug !== '', fn ($query) => $query->where('slug', $slug))
@@ -287,7 +286,7 @@ class OldBlogImporter
             'content' => $this->normalizeImportedHtml($post['content_html'], $baseUrl),
             'featured_image' => $this->stripTrackingFromUrl((string) ($post['featured_image'] ?? '')) ?: null,
             'featured_image_alt' => $post['featured_image_alt'],
-            'status' => ContentEntry::STATUS_PUBLISHED,
+            'status' => \App\Models\ContentEntry::STATUS_PUBLISHED,
             'published_at' => $this->parseDate($post['published_at']),
             'modified_at' => $this->parseDate($post['modified_at']) ?: $this->parseDate($post['published_at']),
             'seo_title' => $post['seo_title'],
@@ -315,7 +314,7 @@ class OldBlogImporter
         ];
     }
 
-    private function preparePayloadForPersistence(array $payload, ?ContentEntry $entry, array $post): array
+    private function preparePayloadForPersistence(array $payload, ?\App\Models\ContentEntry $entry, array $post): array
     {
         if ($entry) {
             return $payload;
@@ -325,12 +324,12 @@ class OldBlogImporter
         $slug = trim((string) ($payload['slug'] ?? ''));
 
         if ($slug === '') {
-            $payload['slug'] = ContentEntry::uniqueSlug((string) ($payload['title'] ?? 'Entry'), 'blog');
+            $payload['slug'] = \App\Models\ContentEntry::uniqueSlug((string) ($payload['title'] ?? 'Entry'), 'blog');
 
             return $payload;
         }
 
-        $slugConflict = ContentEntry::query()
+        $slugConflict = \App\Models\ContentEntry::query()
             ->where('type', 'blog')
             ->where('slug', $slug)
             ->first();
@@ -343,18 +342,18 @@ class OldBlogImporter
             return $payload;
         }
 
-        $payload['slug'] = ContentEntry::uniqueSlug((string) ($payload['title'] ?? $slug), 'blog');
+        $payload['slug'] = \App\Models\ContentEntry::uniqueSlug((string) ($payload['title'] ?? $slug), 'blog');
 
         return $payload;
     }
 
-    private function resolveEntryAndPayload(?ContentEntry $entry, array $payload, array $post): array
+    private function resolveEntryAndPayload(?\App\Models\ContentEntry $entry, array $payload, array $post): array
     {
         if (! $entry) {
             $slug = trim((string) ($payload['slug'] ?? ''));
 
             if ($slug !== '') {
-                $entry = ContentEntry::query()
+                $entry = \App\Models\ContentEntry::query()
                     ->where('type', 'blog')
                     ->where('slug', $slug)
                     ->first();
@@ -366,7 +365,7 @@ class OldBlogImporter
         return [$entry, $payload];
     }
 
-    private function entryMatchesPayload(ContentEntry $entry, array $payload, array $post): bool
+    private function entryMatchesPayload(\App\Models\ContentEntry $entry, array $payload, array $post): bool
     {
         $compareFields = [
             'title',
