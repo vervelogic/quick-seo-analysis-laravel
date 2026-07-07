@@ -416,7 +416,13 @@ class OldBlogImporter
 
     private function redirectWouldBeCreated(array $post, string $slug): bool
     {
-        return $this->redirectPathsToCreate($post, $slug) !== [];
+        foreach ($this->redirectPathsToCreate($post, $slug) as $path) {
+            if (! ContentRedirect::query()->where('from_path', $path)->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function parseDate(?string $value): ?Carbon
@@ -563,13 +569,9 @@ class OldBlogImporter
             }
         }
 
-        $paths = collect($paths)
+        return collect($paths)
             ->map(fn (string $path) => rtrim($path, '/') ?: '/')
             ->unique()
-            ->values();
-
-        return $paths
-            ->reject(fn (string $path) => ContentRedirect::query()->where('from_path', $path)->exists())
             ->values()
             ->all();
     }
