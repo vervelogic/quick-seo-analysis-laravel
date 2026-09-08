@@ -38,6 +38,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Widgets\QsaStatsOverview::class,
                 \App\Filament\Widgets\TopScannedDomains::class,
                 \App\Filament\Widgets\RecentLeads::class,
+                \App\Filament\Widgets\ContentCmsOverview::class,
             ])
             ->middleware([
                 EncryptCookies::class,
