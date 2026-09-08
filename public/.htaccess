@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Canonical host: redirect www to non-www.
+    RewriteCond %{HTTP_HOST} ^www\.quickseoanalysis\.com$ [NC]
+    RewriteRule ^ https://quickseoanalysis.com%{REQUEST_URI} [R=301,L]
+
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
